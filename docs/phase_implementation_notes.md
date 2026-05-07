@@ -24,11 +24,11 @@
 | `data/cleaned/reviews_target.parquet` | 770 MB | — | 三城所有 reviews |
 | `data/cleaned/reviews_restaurant.parquet` | 408 MB | — | 三城餐厅 reviews |
 | `data/cleaned/users_target.parquet` | 563 MB | **359,007** | 至少给三城餐厅写过 1 条 review 的用户 |
-| `data/cleaned/train_reviews.parquet` | 238 MB | ~722K | P0–P70 时序段 |
-| `data/cleaned/val_reviews.parquet` | 31 MB | ~103K | P70–P80 段 |
-| `data/cleaned/test_reviews.parquet` | 60 MB | ~206K | P80–P100 段 |
-| `data/cleaned/coldstart_test_reviews.parquet` | 45 MB | — | test 中"用户首次出现"子集（H7） |
-| `data/cleaned/crosscity_test_reviews.parquet` | 24 MB | — | test 中"跨城用户"子集（H8） |
+| `data/cleaned/train_reviews.parquet` | 238 MB | **587,676** | P0–P70 时序段（已扣除 cold/cross 用户） |
+| `data/cleaned/val_reviews.parquet` | 31 MB | **83,953** | P70–P80 段 |
+| `data/cleaned/test_reviews.parquet` | 60 MB | **167,908** | P80–P100 段 |
+| `data/cleaned/coldstart_test_reviews.parquet` | 45 MB | **140,948** (从 119,156 用户) | review_count<5 用户全部 review，整段 hold-out（H7） |
+| `data/cleaned/crosscity_test_reviews.parquet` | 24 MB | **51,720** (从 5,250 用户) | 在 ≥2 城市留过 review 的用户全部 review，整段 hold-out（H8） |
 
 总计三城 reviews **1,032,056** 条（train+val+test）。
 
@@ -40,7 +40,8 @@ reviews:      1,032,056
 users:        359,007 (至少有一条 target-city 餐厅 review)
 ```
 
-时序切分：按 review.date 全局排序后 P0/P70/P80/P100 切。**注意：P80/P100 的"未来 20%"严格不被任何后续阶段触碰，是 Phase 7 一次性评测专用**。
+时序切分：先把 cold-start (review_count<5) + cross-city (≥2 城) 用户整段 hold-out，剩余 reviews 按 date 全局排序后 P70/P80 切。**注意：P80/P100 的"未来 20%"严格不被任何后续阶段触碰，是 Phase 7 一次性评测专用**。
+重新对账：587,676 + 83,953 + 167,908 + 140,948 + 51,720 ≈ 1,032,205 ≈ 1.03M（误差因双向重叠：少数用户既在 cold-start 又在 cross-city；hold-out 取并集所以扣得稍多）。
 
 ### 1.3 与计划偏差
 
@@ -83,12 +84,18 @@ users:        359,007 (至少有一条 target-city 餐厅 review)
 | `reports/figures/eda_q10_lorenz_gini.png` | Q10: 用户活跃度 Lorenz 曲线 + Gini |
 | `data/features/cuisine_vocab.json` | 50 cuisine 标签（v1.0_2026-05-06） |
 
-### 2.2 关键 finding
+### 2.2 关键 finding（基于最新 notebook 跑数）
 
-- **长尾**：head 1% 商家占 ~25% reviews（Q1）；head 10% 用户写了 ~60% reviews（Q10 Lorenz）。意味着 user_id embedding 的 head 部分会过拟合，tail 部分会欠学习——这就是为什么 5.5 ablation 要测 "去掉 user_id" 看泛化变化。
-- **Cuisine 词表 top-10**：Sandwiches / Coffee & Tea / Fast Food / American (Traditional) / Pizza / Breakfast & Brunch / American (New) / Mexican / Burgers / Specialty Food。
-- **K-means k=8**：肘部图清晰落在 k=8，inertia 改善曲线在 k=8 后斜率显著变缓。
-- **Hour peak**：lunch ~12:30、dinner ~19:00 双峰；这就是 context_features 里 `hour_bucket` 用 3-bucket（early / lunch / dinner）+ sin/cos 双编码的依据。
+- **Rating J-shape**：4-5 星占 **69.8%**，确认正样本阈值 `stars >= 4` 合理。
+- **User review_count 长尾**：power-law 拟合 `rc ∝ rank^(-1.46)`，Zipf-like 分布；head 用户主导 review 量。
+- **稀疏度**：full user-item 矩阵 99.97% 稀疏；top 1K × 1K 子集也只有 0.91% 密度。纯 user-user CF 不可行，必须靠 item content + aggregated user features。
+- **Popularity bias (Q10)**：Gini = **0.681**，top 1% 商家占 **15.2%** reviews。意味着 ranker 不加 diversity 会被头部商家拉住——MMR 和 H10 的依据。
+- **Cuisine 词表 top-5**：Sandwiches / Coffee & Tea / Fast Food / American (Traditional) / Pizza。50 cuisine 词表写入 `cuisine_vocab.json`。
+- **K-means k=8**：肘部清晰落在 k=8（inertia at k=8 ≈ 2，Philadelphia 子集），inertia 改善曲线在 k=8 后斜率显著变缓。
+- **Cold-start 比例**：用户层 119,156/359,007 = **33.2%** review_count<5；商家层 1,445/9,022 = **16.0%** review_count<10。
+- **Cross-city mobility**：5,250/359,007 = **1.46%** 用户在 ≥2 城留过 review；160 = **0.045%** 在全部 3 城。这就是 H8 假设可被检测的样本量上限。
+- **Review length**：P25/P50/P75/P90/P99 = 225/401/712/**1149**/2483 chars（≈56/100/178/**287**/620 tokens）。AI Overview LLM 输入 cap 取 P90。
+- **Hour peak**：peak 落在 1:00 UTC（提交时间，**不是用餐时间**）。提交时间是 noisy proxy，作 weak engagement-time 信号用，不当 dining-time。
 
 ### 2.3 与计划偏差
 

@@ -27,11 +27,17 @@ python scripts/run_eda.py
 **Data spec:**
 - `data/features/cuisine_vocab.json` (50 cuisines, v1.0_2026-05-06)
 
-## Key findings
-- Head 1% 商家占 ~25% reviews
-- Head 10% 用户写了 ~60% reviews（Gini ~0.7）
-- Hour-of-day 双峰：lunch ~12:30 / dinner ~19:00
-- K-means elbow 清晰落在 k=8
+## Key findings (latest notebook run)
+- 4-5 star share: **69.8%** — confirms `stars >= 4` is a usable positive label threshold
+- User review_count power-law exponent ≈ **1.46** (Zipf-like long tail)
+- Sparsity: full user-item matrix **99.97%** sparse; top-1K × 1K slice **0.91%** density
+- Popularity bias: Gini = **0.681**, top 1% restaurants get **15.2%** of reviews
+- Cuisine vocab top 5: Sandwiches / Coffee & Tea / Fast Food / American (Traditional) / Pizza
+- K-means elbow at k=8 (Philadelphia subset, inertia ≈ 2)
+- Cold-start: **33.2%** users have review_count<5; **16.0%** restaurants have review_count<10
+- Cross-city: **1.46%** users wrote in ≥2 of our cities; **0.045%** in all three
+- Review length percentiles: P50=401 / P75=712 / P90=**1,149** / P99=2,483 chars
+- Review submission peak hour: 1:00 UTC (submission time, not visit time — used as weak engagement signal only)
 
 ## Stdout log
 **Not captured retroactively**.

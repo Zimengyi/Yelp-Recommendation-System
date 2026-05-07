@@ -20,17 +20,19 @@ python scripts/prepare_data.py
 | `data/cleaned/reviews_target.parquet` | 770 MB | — |
 | `data/cleaned/reviews_restaurant.parquet` | 408 MB | — |
 | `data/cleaned/users_target.parquet` | 563 MB | **359,007** |
-| `data/cleaned/train_reviews.parquet` | 238 MB | ~722K |
-| `data/cleaned/val_reviews.parquet` | 31 MB | ~103K |
-| `data/cleaned/test_reviews.parquet` | 60 MB | ~206K |
-| `data/cleaned/coldstart_test_reviews.parquet` | 45 MB | — |
-| `data/cleaned/crosscity_test_reviews.parquet` | 24 MB | — |
+| `data/cleaned/train_reviews.parquet` | 238 MB | **587,676** |
+| `data/cleaned/val_reviews.parquet` | 31 MB | **83,953** |
+| `data/cleaned/test_reviews.parquet` | 60 MB | **167,908** |
+| `data/cleaned/coldstart_test_reviews.parquet` | 45 MB | **140,948** (from 119,156 users, review_count<5) |
+| `data/cleaned/crosscity_test_reviews.parquet` | 24 MB | **51,720** (from 5,250 users, ≥2 cities) |
 
 > Note: `data/cleaned/*.parquet` is gitignored (regenerable from raw). To re-create on a fresh clone, place Yelp Open Dataset under `data/raw/yelp_dataset/` and re-run the command above.
 
 ## Key numbers
-- **3 target cities**: Philadelphia (4,373 restaurants) / Tampa (2,502) / Tucson (2,147) = 9,022 total
-- **1,032,056** reviews split P70 / P80 / P100 by date
+- **3 target cities**: Philadelphia (4,373) / Tampa (2,502) / Tucson (2,147) = 9,022 restaurants
+- **1,032,056** restaurant reviews total
+- After holding out cold-start + cross-city users, temporal split runs on the remainder: **587,676 / 83,953 / 167,908** for train/val/test
+- Held-out: **140,948** cold-start reviews + **51,720** cross-city reviews (overlap counted once via union)
 
 ## Stdout log
 **Not captured retroactively** — Phase 1 was run before training_logs/ infrastructure existed (added 2026-05-07).
