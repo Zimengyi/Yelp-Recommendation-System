@@ -87,14 +87,14 @@ flowchart LR
 
 | 字段 | 类型 | 来源 | 说明 |
 |---|---|---|---|
-| `user_ctx.lat` / `lon` | `number` | 设备 GPS（demo 用 Redmond WA 硬编码） | 地理位置，用于 geo 召回 |
+| `user_ctx.lat` / `lon` | `number` | 设备 GPS（demo 用 Philadelphia PA 硬编码） | 地理位置，用于 geo 召回 |
 | `user_ctx.local_time` | `string` (ISO 8601) | 客户端系统时间 | 决定 `hour_bucket`（早/中/晚） |
 | `user_ctx.city` / `state` | `string` | 反向地理编码 | 用于 Greeting Synthesis 文案 |
 | `user_ctx.accumulated_prefs` | `AccumulatedPrefs` | session 历史对话累积 | 初次打开为空对象，再访用户携带历史偏好 |
 
 **模型工作流**：
 
-1. **Greeting Synthesis 子调用**（Sonnet 4.6）—— 输入 `hour_bucket` + `city` + `day_of_week`，生成 F1 顶部 H1 文案（如 "Wed brunch in Redmond ☕"）与副标题（如 "10:32 AM · 5 picks based on your location & this week's trends"）。无 tool_use，直接文本生成。
+1. **Greeting Synthesis 子调用**（Sonnet 4.6）—— 输入 `hour_bucket` + `city` + `day_of_week`，生成 F1 顶部 H1 文案（如 "Wed brunch in Philly ☕"）与副标题（如 "10:32 AM · 5 picks based on your location & this week's trends"）。无 tool_use，直接文本生成。
 
 2. **Recommender 调用** `recommend_restaurants`（DeepFM）—— `intent` 为空对象 `{}`，兜底用 popularity × geo × `hour_bucket` × city embedding × `user_emb` 排序，返回 top-10 候选。
 
@@ -111,7 +111,7 @@ Output ONLY a JSON object with exactly two fields: "h1" and "subtitle". No prose
 
 <task>
 Generate the greeting header for the user's home feed based on their location and current time.
-- h1: a short, evocative title (≤ 40 characters). Include a relevant emoji. Examples: "Wed brunch in Redmond ☕", "Sunday dinner vibes 🌆", "Quick lunch, Bellevue 🥡".
+- h1: a short, evocative title (≤ 40 characters). Include a relevant emoji. Examples: "Wed brunch in Philly ☕", "Sunday dinner vibes 🌆", "Quick lunch, Bellevue 🥡".
 - subtitle: a factual one-liner (≤ 80 characters) mentioning the time and how many picks. Examples: "10:32 AM · 5 picks based on your location & this week's trends", "6:45 PM · 10 top picks near you".
 Do NOT mention the user's name. Do NOT make claims you can't support (e.g., "best in the city" is fine as a colloquial expression; exact claim statistics are not).
 </task>
@@ -125,15 +125,15 @@ Do NOT mention the user's name. Do NOT make claims you can't support (e.g., "bes
 
 <few_shot_examples>
 Example 1:
-Input: { "hour_bucket": "brunch", "city": "Redmond", "state": "WA", "day_of_week": "Wednesday", "top_k": 5 }
-Output: {"h1": "Wed brunch in Redmond ☕", "subtitle": "10:32 AM · 5 picks based on your location & this week's trends"}
+Input: { "hour_bucket": "brunch", "city": "Philadelphia", "state": "PA", "day_of_week": "Wednesday", "top_k": 5 }
+Output: {"h1": "Wed brunch in Philly ☕", "subtitle": "10:32 AM · 5 picks based on your location & this week's trends"}
 
 Example 2:
-Input: { "hour_bucket": "dinner", "city": "Los Angeles", "state": "CA", "day_of_week": "Friday", "top_k": 10 }
+Input: { "hour_bucket": "dinner", "city": "Philadelphia", "state": "PA", "day_of_week": "Friday", "top_k": 10 }
 Output: {"h1": "Friday night in LA 🌆", "subtitle": "7:15 PM · 10 top picks near you for dinner"}
 
 Example 3:
-Input: { "hour_bucket": "lunch", "city": "Chicago", "state": "IL", "day_of_week": "Monday", "top_k": 10 }
+Input: { "hour_bucket": "lunch", "city": "Tucson", "state": "IL", "day_of_week": "Monday", "top_k": 10 }
 Output: {"h1": "Monday lunch, Chicago 🥡", "subtitle": "12:05 PM · 10 nearby spots ready for lunch"}
 </few_shot_examples>
 
@@ -384,7 +384,7 @@ Do NOT use superlatives like "best in the city" unless there is strong review co
 
 <few_shot_examples>
 Example 1:
-Restaurant: Tatsu Ramen (Arts District, LA) · Ramen · $$
+Restaurant: Yamitsuki Ramen (Arts District, LA) · Ramen · $$
 Top attributes: good_for_lunch=true, ambience=casual, noise_level=average
 Top reviews excerpt:
   - "The tonkotsu broth is rich and silky — clearly simmered for hours. Best ramen in LA."
@@ -392,7 +392,7 @@ Top reviews excerpt:
   - "More locals than tourists. Relaxed vibe, no pretension."
 Best dish inference: Tonkotsu Ramen ($16), Spicy Miso ($17)
 Output:
-{"ai_overview": "Tatsu Ramen's tonkotsu broth — simmered a full 12 hours — delivers the kind of depth that makes regulars come back weekly. The spicy miso is an equally strong contender, with a well-balanced heat that doesn't overwhelm the noodles. A genuinely local crowd and an unhurried atmosphere make this Arts District spot one of the most honest ramen experiences in the city."}
+{"ai_overview": "Yamitsuki Ramen's tonkotsu broth — simmered a full 12 hours — delivers the kind of depth that makes regulars come back weekly. The spicy miso is an equally strong contender, with a well-balanced heat that doesn't overwhelm the noodles. A genuinely local crowd and an unhurried atmosphere make this Arts District spot one of the most honest ramen experiences in the city."}
 
 Example 2:
 Restaurant: Cafe Corina (Pasadena, CA) · Cafe · $
@@ -529,7 +529,7 @@ interface S5Output {
 
 ##### §3.2.2.S6 — F1 → F2 Trip Plan 生成（核心 LLM Workflow）
 
-**触发**：用户点击 F1 Quick action "Trip Planner" pill，或在 input bar 输入行程描述（如"我要去 LA 玩 3 天"），send 后系统路由到行程规划流程。
+**触发**：用户点击 F1 Quick action "Trip Planner" pill，或在 input bar 输入行程描述（如"我要去 Philadelphia 玩 3 天"），send 后系统路由到行程规划流程。
 
 > [!warning] S6 是系统中最复杂、成本最高的单次用户操作
 >
@@ -539,7 +539,7 @@ interface S5Output {
 
 | 字段 | 类型 | 来源 | 说明 |
 |---|---|---|---|
-| `user_text` | `string` | 用户输入 | 行程描述原文（如"LA 3 天，前两天市区，第三天圣莫尼卡"） |
+| `user_text` | `string` | 用户输入 | 行程描述原文（如"Philadelphia 3 天，前两天 Center City，第三天 Old City + Fishtown"） |
 | `user_ctx` | `UserContext` | session | 位置、时间、已有偏好 |
 | `conversation_history` | `Turn[]` | session | 最近 3 轮上下文 |
 
@@ -551,13 +551,13 @@ interface S5Output {
 
 3. **Trip Itinerary Parsing 子 LLM 调用**（Sonnet 4.6）—— 从 `user_text` 精细解析行程结构：`destination` / `days` / `start_date` / 可选 `per_day_regions`（如 day 1 = 市区，day 3 = 圣莫尼卡）。
 
-4. **Activity Sequence Generator 子 LLM 调用**（Sonnet 4.6，**×9 次**，每天 × 3 时段各一次）—— 对每个 (day, period) 组合，生成 `activity` 文案（13pt body 文字，描述该时段的旅行活动，如"参观盖蒂中心，欣赏欧洲艺术收藏和花园景观"）。Activity 文案将作为 `recommend_restaurants` 的 `period_context` 输入，影响 geo + semantic 排序。
+4. **Activity Sequence Generator 子 LLM 调用**（Sonnet 4.6，**×9 次**，每天 × 3 时段各一次）—— 对每个 (day, period) 组合，生成 `activity` 文案（13pt body 文字，描述该时段的旅行活动，如"参观费城美术馆，欣赏「Rocky」台阶和印象派藏品"）。Activity 文案将作为 `recommend_restaurants` 的 `period_context` 输入，影响 geo + semantic 排序。
 
 5. **Recommender 多次调用** `recommend_restaurants`（DeepFM，**×9 次**，每个 period 独立调用）—— 携带 `period_context`（activity 文本 + period_id + 当日已选 cuisine 列表）+ 强制 `distance_constraint=2.0 mi`（地理临近约束） + `top_k=3`（每段返回 3 个候选供用户切换）。
 
 6. **Diversity Re-rank 启发式层**（**非 LLM**）—— 跨天去重：同一 trip 内同 cuisine 不超过 2 餐；同一 period 的 3 个候选之间 cuisine 和价位多样化（MMR heuristic）；同一 day 内三个 period 地理中心半径 ≤ 5 mi。
 
-7. **Response Synthesis**（Sonnet 4.6）—— 拼装 `TripPlanRender`，含 days[].periods[].activity + restaurants[3]，写 `reply_text`（如"LA 3 天行程安排好了！每段都有 3 个候选可以切换~"）。
+7. **Response Synthesis**（Sonnet 4.6）—— 拼装 `TripPlanRender`，含 days[].periods[].activity + restaurants[3]，写 `reply_text`（如"Philadelphia 3 天行程安排好了！每段都有 3 个候选可以切换~"）。
 
 **Trip Itinerary Parsing — 完整 Prompt**
 
@@ -570,12 +570,12 @@ Output ONLY a JSON object matching the TripItinerary schema below. No prose, no 
 
 <task>
 Parse the user's message and extract:
-- destination: city name + state/country (e.g. "Los Angeles, CA", "New York, NY", "Tokyo, Japan")
+- destination: city name + state/country (e.g. "Philadelphia, PA", "Tampa, FL", "Tokyo, Japan")
 - days: total number of trip days (integer, 1–7)
 - start_date: best-effort ISO 8601 date. If user says "next Friday", resolve relative to today's date.
   If user gives no date hint, use tomorrow's date as default.
 - per_day_regions: optional array of length `days`. Each element is a short region label for that day
-  (e.g. ["Downtown + Arts District", "Santa Monica + Venice", "Beverly Hills + Rodeo Drive"]).
+  (e.g. ["Downtown + Arts District", "Old City + Fishtown", "Rittenhouse Square + Walnut Street"]).
   If the user doesn't mention day-specific regions, return null for this field.
 Do NOT fabricate regions if the user hasn't mentioned them — use null.
 </task>
@@ -592,23 +592,23 @@ Do NOT fabricate regions if the user hasn't mentioned them — use null.
 
 <few_shot_examples>
 Example 1:
-User: "我要去 LA 玩 3 天，前两天市区，第三天圣莫尼卡"
+User: "我要去 Philadelphia 玩 3 天，前两天市区，第三天圣莫尼卡"
 Today: 2026-05-04
 Output:
 {
-  "destination": "Los Angeles, CA",
+  "destination": "Philadelphia, PA",
   "days": 3,
   "start_date": "2026-05-05",
-  "per_day_regions": ["Downtown + Arts District", "Hollywood + Midtown", "Santa Monica + Venice"],
+  "per_day_regions": ["Center City", "Old City + Fishtown", "South Philly + Italian Market"],
   "warnings": null
 }
 
 Example 2:
-User: "Plan a 4-day trip to New York starting next Friday"
+User: "Plan a 4-day trip to Tampa starting next Friday"
 Today: 2026-05-04
 Output:
 {
-  "destination": "New York, NY",
+  "destination": "Tampa, FL",
   "days": 4,
   "start_date": "2026-05-08",
   "per_day_regions": null,
@@ -616,11 +616,11 @@ Output:
 }
 
 Example 3:
-User: "SF 两天，想去渔人码头和金门大桥"
+User: "Tucson 两天，想去 4th Avenue 和 Saguaro National Park"
 Today: 2026-05-04
 Output:
 {
-  "destination": "San Francisco, CA",
+  "destination": "Tucson, AZ",
   "days": 2,
   "start_date": "2026-05-05",
   "per_day_regions": ["Fisherman's Wharf + Embarcadero", "Golden Gate + Marina District"],
@@ -651,7 +651,7 @@ Output ONLY a JSON object: {"activity": "..."}.
 <task>
 Write an activity description for the given day + period of the trip.
 The activity should:
-1. Be geographically plausible given the day's region (e.g. if region = "Santa Monica + Venice", suggest the beach, pier, or Venice Boardwalk).
+1. Be geographically plausible given the day's region (e.g. if region = "Old City + Fishtown", suggest the beach, pier, or Venice Boardwalk).
 2. End naturally at mealtime (e.g. for morning period → ends with "before grabbing breakfast"; for lunch period → "work up an appetite for lunch"; for dinner → "as the sun sets, head to dinner").
 3. Mention at least one specific attraction or landmark in the region.
 4. Be written in Chinese (even if the city name is in English).
@@ -668,17 +668,17 @@ The activity text will be shown at 13pt in the F2 trip plan UI, above the restau
 
 <few_shot_examples>
 Example 1:
-Input: { "day": 1, "region": "Downtown + Arts District", "period": "morning", "destination": "Los Angeles, CA" }
+Input: { "day": 1, "region": "Downtown + Arts District", "period": "morning", "destination": "Philadelphia, PA" }
 Output:
-{"activity": "从酒店出发，前往盖蒂中心（The Getty Center），欣赏欧洲绘画收藏与山顶花园全景，约 2 小时后步行至附近享用早午餐。"}
+{"activity": "从酒店出发，前往费城美术馆（The Getty Center），欣赏欧洲绘画收藏与山顶花园全景，约 2 小时后步行至附近享用早午餐。"}
 
 Example 2:
-Input: { "day": 2, "region": "Hollywood + Midtown", "period": "dinner", "destination": "Los Angeles, CA" }
+Input: { "day": 2, "region": "South Philly + Italian Market", "period": "dinner", "destination": "Philadelphia, PA" }
 Output:
-{"activity": "在格里菲斯天文台（Griffith Observatory）看日落，俯瞰洛杉矶夜景，随后沿 Los Feliz Blvd 步行 10 分钟前往晚餐。"}
+{"activity": "在费城天文馆（费城天文馆 (Franklin Institute Planetarium)）看日落，俯瞰洛杉矶夜景，随后沿 Los Feliz Blvd 步行 10 分钟前往晚餐。"}
 
 Example 3:
-Input: { "day": 1, "region": "Fisherman's Wharf", "period": "lunch", "destination": "San Francisco, CA" }
+Input: { "day": 1, "region": "Fisherman's Wharf", "period": "lunch", "destination": "Tucson, AZ" }
 Output:
 {"activity": "漫步渔人码头，在 Pier 39 观察海狮，逛 Ferry Building 农贸市场，然后就近找一家海湾景观餐厅享用午餐。"}
 </few_shot_examples>
@@ -696,7 +696,7 @@ prior_meals_this_day: {{prior_meals_cuisines | json}}
 
 ```typescript
 interface TripItinerary {
-  destination: string;               // "Los Angeles, CA"
+  destination: string;               // "Philadelphia, PA"
   days: number;                      // 1–7
   start_date: string;                // ISO 8601 date
   per_day_regions: string[] | null;  // length == days, or null
@@ -707,7 +707,7 @@ interface PeriodContext {
   period_id: 0 | 1 | 2;             // 0=morning, 1=lunch, 2=dinner
   period_label: "morning" | "lunch" | "dinner";
   activity: string;                  // generated by Activity Sequence Generator
-  region: string;                    // e.g. "Santa Monica + Venice"
+  region: string;                    // e.g. "Old City + Fishtown"
   prior_meals_cuisines: string[];    // cuisines already chosen in this day (for diversity)
 }
 
@@ -727,7 +727,7 @@ interface PeriodPlan {
 
 interface DayPlan {
   day_number: number;                // 1-based
-  region_label: string;              // e.g. "LA 市区 + 圣莫尼卡"
+  region_label: string;              // e.g. "Philadelphia Center City + Old City"
   periods: {
     morning: PeriodPlan;
     lunch: PeriodPlan;
@@ -752,7 +752,7 @@ interface TripPlanOutput {
 
 interface TripPlanRender {
   type: "trip_plan";
-  greeting_h1: string;              // e.g. "LA · 3 days · 9 meals"
+  greeting_h1: string;              // e.g. "Philadelphia · 3 days · 9 meals"
   greeting_subtitle: string;        // e.g. "Generated from your itinerary · regional clustering + cuisine diversity"
   days: DayPlan[];
 }
@@ -856,7 +856,7 @@ interface S8Output {
    - pdf：前端用 `react-pdf` 或 `html2canvas` 渲染。
    - png：截图整个 F2 视图。
 
-2. **（可选）Narrative Wrap 子 LLM 调用**（Sonnet 4.6，仅当 `include_narrative=true`）—— 输入结构化行程 JSON，生成更具叙述性的行程文字（如 "DAY 1 早晨：从酒店出发前往盖蒂中心，约 10:30 在 Urth Caffé 享用有机咖啡..."），适合直接发给朋友或保存为记事本。
+2. **（可选）Narrative Wrap 子 LLM 调用**（Sonnet 4.6，仅当 `include_narrative=true`）—— 输入结构化行程 JSON，生成更具叙述性的行程文字（如 "DAY 1 早晨：从酒店出发前往费城美术馆，约 10:30 在 Urth Caffé 享用有机咖啡..."），适合直接发给朋友或保存为记事本。
 
 > [!info] 默认路径为纯前端格式化，无 LLM 调用
 >
@@ -893,9 +893,9 @@ Tone: warm, practical, like a message from a local friend who planned your trip.
 
 <few_shot_examples>
 Input (abbreviated, 1-day example):
-{ "days": [{ "day_number": 1, "region_label": "LA 市区 + 艺术区", "periods": { "morning": { "activity": "参观盖蒂中心...", "candidates": [{"name": "Urth Caffé", "category": ["Cafe"], "price_range": "$$", "reason_chip": "📍 0.2 mi · 艺术区首选"}] }, "lunch": { "activity": "逛艺术区街头壁画...", "candidates": [{"name": "Bestia", "category": ["Italian"], "price_range": "$$$", "reason_chip": "本周最热 · 312 好评"}] }, "dinner": { "activity": "在格里菲斯天文台看日落...", "candidates": [{"name": "Yamashiro", "category": ["Japanese"], "price_range": "$$$", "reason_chip": "基于你的口味偏好"}] } } }] }
+{ "days": [{ "day_number": 1, "region_label": "Philadelphia Center City + 艺术区", "periods": { "morning": { "activity": "参观费城美术馆...", "candidates": [{"name": "Urth Caffé", "category": ["Cafe"], "price_range": "$$", "reason_chip": "📍 0.2 mi · 艺术区首选"}] }, "lunch": { "activity": "逛艺术区街头壁画...", "candidates": [{"name": "Bestia", "category": ["Italian"], "price_range": "$$$", "reason_chip": "本周最热 · 312 好评"}] }, "dinner": { "activity": "在费城天文馆看日落...", "candidates": [{"name": "Yamashiro", "category": ["Japanese"], "price_range": "$$$", "reason_chip": "基于你的口味偏好"}] } } }] }
 Output:
-{"narrative": "DAY 1 — LA 市区 + 艺术区\n早晨：参观盖蒂中心，欣赏欧洲艺术收藏之后 → Urth Caffé（Cafe，$$）📍 0.2 mi · 艺术区首选\n中午：逛完艺术区街头壁画 → Bestia（Italian，$$$）本周最热 · 312 好评\n晚上：格里菲斯天文台日落之后 → Yamashiro（Japanese，$$$）基于你的口味偏好"}
+{"narrative": "DAY 1 — Philadelphia Center City + 艺术区\n早晨：参观费城美术馆，欣赏欧洲艺术收藏之后 → Urth Caffé（Cafe，$$）📍 0.2 mi · 艺术区首选\n中午：逛完艺术区街头壁画 → Bestia（Italian，$$$）本周最热 · 312 好评\n晚上：费城天文馆日落之后 → Yamashiro（Japanese，$$$）基于你的口味偏好"}
 </few_shot_examples>
 
 <trip_plan>
@@ -1154,8 +1154,8 @@ interface ModifyTripSlotOutput {
 | LLM 超时（响应 > 5s） | API call 超时 | 返回当前位置桶（city + price_range）的缓存热门 top-10（离线预计算，每日刷新）；`reply_text`："稍微有点慢，这是附近最受欢迎的几家，供参考~" |
 | `get_restaurant_detail` 找不到 business_id | Yelp 数据集中无匹配记录 | 返回 DetailRender 包含友好提示：`ai_overview: "We don't have that restaurant in our dataset yet."`，同时在 `render` 中附上 1 条 `recommend_restaurants` 推荐的相似餐厅作为 `fallback_card` |
 | AI Overview 子 LLM 调用失败 | review 摘要生成超时或 API error | `ai_overview` 字段改为直接取 top_review 前 100 字，不发起子 LLM；标记 `ai_overview_source: "verbatim"` |
-| **S6 行程解析失败** | Itinerary Parsing 子调用无法提取 `destination` 或 `days` | 停止 trip plan 生成，向用户返回 clarification message："请告诉我目的地和天数，例如「LA 3 天」或「去纽约玩 4 天」，我来帮你安排！" |
-| **S6 活动序列生成返回空** | Activity Sequence Generator 输出空 `activity` 或 API 失败 | 降级到城市默认 activity 模板：LA → "参观盖蒂中心" / "Santa Monica 海滩漫步" / "Arts District 艺术探索"；NYC → "中央公园晨跑" / "Brooklyn Bridge 步行" / "MOMA 艺术之旅"；SF → "渔人码头" / "金门大桥骑行" / "Lombard St 探索"。模板按 period 分类，填入对应时段。标记 `activity_source: "template"` |
+| **S6 行程解析失败** | Itinerary Parsing 子调用无法提取 `destination` 或 `days` | 停止 trip plan 生成，向用户返回 clarification message："请告诉我目的地和天数，例如「Philadelphia 3 天」或「去 Tampa 玩 4 天」，我来帮你安排！" |
+| **S6 活动序列生成返回空** | Activity Sequence Generator 输出空 `activity` 或 API 失败 | 降级到城市默认 activity 模板：LA → "参观费城美术馆" / "Penn's Landing 河边漫步" / "Old City 历史探索"；NYC → "中央公园晨跑" / "Brooklyn Bridge 步行" / "MOMA 艺术之旅"；SF → "渔人码头" / "金门大桥骑行" / "Lombard St 探索"。模板按 period 分类，填入对应时段。标记 `activity_source: "template"` |
 | **S10 modify_trip_slot 约束无解** | `recommend_restaurants` 在新约束下返回 0 候选 | 保留原有 3 个候选不变，`constraint_applied=false`；`reply_text`："找不到同时满足这些条件的餐厅，要不要放宽一下？比如只要素食友好（不一定全素）？"附上 `fallback_message` 解释约束冲突。 |
 
 > [!warning] 放宽优先级顺序（不能颠倒）

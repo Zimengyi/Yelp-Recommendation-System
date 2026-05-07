@@ -523,7 +523,7 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 
 | 步骤 | 详细 |
 |---|---|
-| **8.2.1** | 在 Yelp 训练集中找 3 个匹配 Haobo 偏好的 user_id（LA / brunch / $$）|
+| **8.2.1** | 在 Yelp 训练集中找 3 个匹配 Haobo 偏好的 user_id（Philadelphia / brunch / $$）|
 | **8.2.2** | 锚定这 3 个 user_id 作为 demo 帧 3 的 persona |
 | **8.2.3** | 预计算这 3 个用户的 top-10 推荐输出 |
 
@@ -635,7 +635,7 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 - [ ] 输出文件落盘 + commit / 备份？
 - [ ] 任何 blockers 记到 `notebooks/blockers.md`？
 - [ ] 明日第一件事是什么？
-- [ ] EDA / 模型训练有没有跑出超预期 / 反预期数字？（写进 §3.3.7 Learnings 草稿）
+- [ ] EDA / 模型训练有没有跑出超预期 / 反预期数字？（写进 §3.4.7 Learnings 草稿）
 
 ---
 

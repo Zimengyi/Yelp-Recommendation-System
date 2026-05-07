@@ -7,7 +7,7 @@
 2. 能不能容纳"地理位置 + 行程 context"特征
 3. 是否对得起 ML2 课的"deep learning"评分（纯线性方法可能扣分）
 4. 实现成本（有现成 PyTorch/TF 实现 vs 自己撸）
-5. 训练时间（Yelp 6M reviews，单卡 GPU 能否在 1 小时内跑完一个 epoch）
+5. 训练时间（Yelp ~7M reviews（实测 6,990,280），单卡 GPU 能否在 1 小时内跑完一个 epoch）
 
 ---
 

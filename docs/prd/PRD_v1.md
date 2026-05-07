@@ -1,6 +1,6 @@
 # [PRD] Travel-aware Restaurant Recommender · ML2 Class Project `.draft`
 
-> 状态：v1 草稿 · 2026-05-04 · 待 5/5 周二 12:00 同步会评审
+> 状态：v1 草稿 · 2026-05-04 · 已通过 5/5 同步会评审 · v2.2 架构锁定 2026-05-06
 
 ---
 
@@ -16,7 +16,7 @@
 | **Reviewers** | Prof. Arnab Bose · Zimeng · Cindy                               |
 | **分工**        | Haobo（PRD + 推荐模型）/ Zimeng + Cindy（EDA + 模型调研）                   |
 | **Priority**  | P0（期末交付，单次机会）                                                   |
-| **Deadline**  | **2026-05-23（周六）** · 距今 19 天                                       |
+| **Deadline**  | **2026-05-23（周六）** · 距今 17 天（v2.2 锁定 2026-05-06 起算）                                       |
 
 ### Change Log
 
@@ -76,7 +76,7 @@
 >
 > **左图（F1 主屏）** —— 用户打开 chatbot，默认渲染卡片流：基于当前位置 + 周榜热度，给出当日推荐（例：上午 10 点 Moonlark's Dinette · 晚上 7 点 Water Grill）。每张卡片含图片 / 时间建议 / 名字 / 评分 / 类别 / 一句话描述。底部有持续输入框，可继续对话精化。
 >
-> **右图（F2 Trip Plan 视图）** —— 用户点顶部 "Trip plan" 按钮，输入多日行程（例：LA 3 天）。系统按日组织（DAY 3 · LA 市区 + 圣莫尼卡），每天 morning/lunch/dinner 各一家，区域内距离合理 + 跨日 cuisine 多样化。卡片右上 "Open route" 一键拉起地图导航 / "Copy" 复制行程文本。
+> **右图（F2 Trip Plan 视图）** —— 用户点顶部 "Trip plan" 按钮，输入多日行程（例：LA 3 天）。系统按日组织（DAY 3 · Philadelphia Center City + Old City），每天 morning/lunch/dinner 各一家，区域内距离合理 + 跨日 cuisine 多样化。卡片右上 "Open route" 一键拉起地图导航 / "Copy" 复制行程文本。
 >
 > **关键差异化** —— 不是"列出附近餐厅"（Google Maps 已经能做），而是**理解用户对话上下文 + 行程结构后**给出受约束的推荐。约束维度：地理（同区域）、时段（早午晚匹配营业时间）、多样性（跨日不重 cuisine）、个人偏好（对话中累积）。这套约束注入到 DeepFM 的 ranking 阶段作为 context features。
 

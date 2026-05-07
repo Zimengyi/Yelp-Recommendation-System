@@ -60,7 +60,7 @@
 | H6            | Cold-start 用户（历史评论 < 5 条）的推荐质量对内容特征（cuisine / price / tags）的依赖 > 协同特征（user embedding）                                                   | 分别训练「全特征」模型和「去掉 user_id embedding」模型，在冷启动用户子集（< 5 reviews）上比较 Recall@10                                                                                                        | 去掉 user embedding 的模型在冷启动子集上 Recall@10 **不显著下降**（< 0.01 差距），说明内容特征足以覆盖冷启动                      |
 | H7            | Hybrid 模型（DeepFM）比纯协同过滤（MF）有统计显著的推荐质量提升                                                                                                 | 全量测试集（temporal hold-out）上对比 DeepFM vs MF 的 NDCG@10 和 Recall@10                                                                                                                 | DeepFM NDCG@10 ≥ MF + 0.03（绝对值 3pp），Recall@10 亦优于 MF；差距用 bootstrap 置信区间验证                      |
 | H8            | 序列建模（GRU4Rec 类方案）在我们 trip 场景下相对 DeepFM 没有显著优势——因为 Yelp review 数据非 session 级 click，合成 session 引入噪声                                       | 可选 ablation：在合成 session（user_id + 7 天时间窗口）上训练简版 GRU4Rec，与 DeepFM 在同测试集上比较 NDCG@10                                                                                              | GRU4Rec NDCG@10 提升 < 0.005（不显著）或低于 DeepFM；佐证不花精力在序列模型的决策                                       |
-| **H9** ⭐ NEW  | **Activity 文本与餐厅类目存在显著语义匹配**——如"看完日落"语义靠近 seafood / bar / sunset view 的店；"逛 Rodeo Drive 之间"靠近 cafe / quick brunch。                      | 计算 `activity_emb`（sentence-transformer 输出 → 32-dim）与餐厅 `category_emb` 的 cosine similarity；ablation：在 trip plan 场景下加入 / 不加入 `activity_emb` 后 NDCG@3 / per-period diversity 的变化。 | 加入后 per-period top-3 候选的 cuisine 多样性 ≥ 0.66（avg 至少 2 unique cuisines per top-3），无显著 NDCG@3 下降。 |
+| **H9** ⭐ NEW  | **Activity 文本与餐厅类目存在显著语义匹配**——如"看完日落"语义靠近 seafood / bar / sunset view 的店；"逛 Walnut Street 之间"靠近 cafe / quick brunch。                      | 计算 `activity_emb`（sentence-transformer 输出 → 32-dim）与餐厅 `category_emb` 的 cosine similarity；ablation：在 trip plan 场景下加入 / 不加入 `activity_emb` 后 NDCG@3 / per-period diversity 的变化。 | 加入后 per-period top-3 候选的 cuisine 多样性 ≥ 0.66（avg 至少 2 unique cuisines per top-3），无显著 NDCG@3 下降。 |
 | **H10** ⭐ NEW | **单段 top-3 候选的多样性（cuisine + 价位）应当通过 MMR (Maximal Marginal Relevance) 重排实现**，而不是单纯按 DeepFM score 排序——纯 score-greedy 会导致 top-3 同 cuisine。 | 对比 score-greedy top-3 vs MMR top-3 的 cuisine diversity；MMR 参数 λ 在 {0.5, 0.6, 0.7, 0.8} 之间扫描，用 per-period top-3 cuisine diversity vs NDCG@3 评估。                                 | MMR 能保证 per-period top-3 cuisine 多样性 ≥ 0.66，同时 NDCG@3 相比 greedy 下降 < 0.005（多样性增益不以质量为代价）。      |
 
 **备注**：H8 为可选验证项，若时间紧张可作为 Future Work 中的"为何不做序列模型"论据引用，无需实验。H5 中 trip context 的合成方法（将同一用户在 ±3 天内的评论聚合为伪行程 session）作为已知限制在 §3.3.7 中详述。H9/H10 对应的 demo activity 库共 27 条（3 days × 3 periods × 3 candidates），详见 §3.3.7 L7。
@@ -150,7 +150,7 @@ EDA 需要回答的 11 个关键问题（按优先级排序）：
 | `trip_day_index`                           | Numeric                                   | 用户行程第几天（由 chatbot 对话解析或用户输入）                                   | 归一化到 [0,1]（假设行程 ≤ 14 天）；缺失时填 0                                                                                                      | trip-context 核心特征 (H5)；体现行程进度对偏好的影响                                                                                                                                                     |
 | `region_cluster_id`                        | Embedding (cardinality=k, k≈8)            | 从 `business.latitude/longitude` k-means 聚类                     | 查表 embedding, dim=4                                                                                                                 | 同城内区域化推荐；确保 trip plan 的地理紧凑性                                                                                                                                                            |
 | **`period_id`** ⭐ NEW                      | Categorical (3 levels)                    | F2 行程 period 标签（早晨 / 中午 / 晚上），由 LLM trip planner 生成            | 3-level embedding, dim=4（morning=0 / afternoon=1 / evening=2）                                                                       | 时段直接影响候选集（早餐 vs 晚餐 cuisine 分布完全不同）；比 `hour_bucket` 粒度更粗、与 F2 UI period 直接对应                                                                                                             |
-| **`activity_emb`** ⭐ NEW                   | Numeric vector (32-dim)                   | F2 行程 activity 描述文本（如"参观盖蒂中心，欣赏欧洲艺术收藏"），由 LLM trip planner 生成  | sentence-transformer（`sentence-transformers/all-MiniLM-L6-v2`，768-dim）→ PCA / lightweight autoencoder → 32-dim                      | H9——activity 语义与餐厅 category 的对齐信号；32-dim 是 DeepFM concat 维度的合理 trade-off（选 sentence-transformer 而非 LLM embedding 出于 class demo 预算考虑，单次约 ~5ms GPU / ~30-50ms CPU，batch 离线预计算 + 缓存后线上零延迟） |
+| **`activity_emb`** ⭐ NEW                   | Numeric vector (32-dim)                   | F2 行程 activity 描述文本（如"参观费城美术馆，欣赏欧洲艺术收藏"），由 LLM trip planner 生成  | sentence-transformer（`sentence-transformers/all-MiniLM-L6-v2`，768-dim）→ PCA / lightweight autoencoder → 32-dim                      | H9——activity 语义与餐厅 category 的对齐信号；32-dim 是 DeepFM concat 维度的合理 trade-off（选 sentence-transformer 而非 LLM embedding 出于 class demo 预算考虑，单次约 ~5ms GPU / ~30-50ms CPU，batch 离线预计算 + 缓存后线上零延迟） |
 | **`prior_meals_cuisines`** ⭐ NEW           | Multi-hot vector (top-30 cuisines)        | F2 当前 trip state——同 trip 已选餐厅的 cuisine 列表（跨日 + 同日早于当前时段的已选）    | multi-hot over top-30 cuisine categories（来自 Q3 EDA 的 top-30 列表）                                                                     | 跨日/同日多样性约束的"入模"信号；模型学到"前两餐都意餐 → 这餐应避开意餐"（H10 的隐式监督）；与 MMR 层互补：模型层偏好多样性，MMR 层强制多样性                                                                                                       |
 
 **特征缺失处理规则**：
@@ -474,7 +474,7 @@ MMR 完成 top-3 选择后，通过以下硬规则进行二次校验或替换：
 
 > [!success] ✅ 决策：选用 DeepFM — deepctr-torch 实现
 >
-> 理由：（1）直接命中教授 rubric "hybrid or factorization machine"；（2）deepctr-torch 原生支持稀疏特征 + embedding，与我们的 26 个 feature schema 直接对应，无需手写 forward pass；（3）在 Yelp 量级（6M reviews 下采样至 1M）单卡 T4 训练时间可控（约 1h/epoch）。
+> 理由：（1）直接命中教授 rubric "hybrid or factorization machine"；（2）deepctr-torch 原生支持稀疏特征 + embedding，与我们的 26 个 feature schema 直接对应，无需手写 forward pass；（3）在 Yelp 量级（~7M reviews 下采样至 1M）单卡 T4 训练时间可控（约 1h/epoch）。
 
 ##### 正则化扫描协议
 
@@ -573,7 +573,7 @@ $$\mathcal{L}_{BCE} = -\frac{1}{N}\sum_{i=1}^{N} \bigl[y_i \log \hat{y}_i + (1 -
 | Batch size | 1024 | T4 16GB 显存利用率 ~80% |
 | Epochs | 最多 20，early stopping patience=3 | 实际预计 8-12 epoch 收敛 |
 | Negative sampling | 每个正样本采样 N 个负样本（N=1 default，sweep 包含 1:2 / 1:4） | 从同城商家中随机采样负样本 |
-| 数据规模 | 从 Yelp 6M reviews 中按 target 3 城市 + 时序过滤，预计 1M 样本 | 单卡训练约 1h/epoch |
+| 数据规模 | 从 Yelp ~7M reviews 中按 target 3 城市 + 时序过滤，预计 1M 样本 | 单卡训练约 1h/epoch |
 
 ##### 硬件与日志
 
