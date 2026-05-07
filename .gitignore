@@ -29,8 +29,11 @@ data/raw/*
 # Cleaned + features — reproducible by running scripts/
 data/cleaned/*
 !data/cleaned/.gitkeep
+# tiny JSONs (cuisine_vocab + feature_spec) are committed; rest of features/ is regenerable
 data/features/*
 !data/features/.gitkeep
+!data/features/cuisine_vocab.json
+!data/features/feature_spec.json
 
 # Big intermediates
 *.parquet
@@ -48,10 +51,11 @@ models/*
 *.ckpt
 *.safetensors
 
-# ──────────────────── Reports / figures (regenerable) ────────────────────
-reports/figures/*.png
-reports/figures/*.svg
-reports/figures/*.pdf
+# ──────────────────── Reports / figures ────────────────────
+# EDA / training figures committed for reviewer / team visibility
+# (re-run scripts/ to regenerate; commit when content meaningfully changes)
+!reports/figures/eda_*.png
+!reports/figures/training_*.png
 !reports/figures/.gitkeep
 
 # ──────────────────── OS / IDE ────────────────────
