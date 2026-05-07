@@ -54,12 +54,20 @@ models/*
 *.ckpt
 *.safetensors
 
-# ──────────────────── Reports / figures ────────────────────
+# ──────────────────── Reports / figures / logs ────────────────────
 # EDA / training figures committed for reviewer / team visibility
 # (re-run scripts/ to regenerate; commit when content meaningfully changes)
 !reports/figures/eda_*.png
 !reports/figures/training_*.png
 !reports/figures/.gitkeep
+# Training stdout logs (per phase / per sweep) — small text, huge debug value
+!reports/training_logs/
+!reports/training_logs/*.log
+!reports/training_logs/.gitkeep
+# Run records: per-script-invocation markdown narrative (command / args / outputs / findings)
+!reports/run_records/
+!reports/run_records/*.md
+!reports/run_records/.gitkeep
 
 # ──────────────────── OS / IDE ────────────────────
 .DS_Store
