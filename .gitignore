@@ -43,8 +43,10 @@ data/features/*
 !data/sample/*.parquet  # tiny demo samples can be committed
 
 # ──────────────────── Model artifacts ────────────────────
+# Big checkpoints gitignored (regenerable); JSON metrics + history committed
 models/*
 !models/.gitkeep
+!models/*.json
 *.pt
 *.pth
 *.pkl
