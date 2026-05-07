@@ -1,0 +1,191 @@
+{
+  "version": "v3.0_2026-05-06",
+  "anchor": "PRD §3.3.3 v2.2 (26 features: User 8 + Item 9 + Context 9)",
+  "n_users": 359007,
+  "n_businesses": 9022,
+  "cuisine_vocab_size": 50,
+  "city_id_map": {
+    "Philadelphia": 1,
+    "Tampa": 2,
+    "Tucson": 3,
+    "<UNK>": 0
+  },
+  "user_features": [
+    {
+      "name": "user_id",
+      "type": "embedding",
+      "vocab_size": 359008,
+      "dim": 8,
+      "source": "user.user_id (+ <NEW_USER> OOV)"
+    },
+    {
+      "name": "avg_rating_given",
+      "type": "numeric",
+      "range": [
+        0,
+        1
+      ],
+      "source": "user.average_stars / 5"
+    },
+    {
+      "name": "review_count_log",
+      "type": "numeric",
+      "source": "log1p(user.review_count)"
+    },
+    {
+      "name": "days_active",
+      "type": "numeric",
+      "source": "log1p((today - yelping_since).days)"
+    },
+    {
+      "name": "elite_flag",
+      "type": "binary",
+      "source": "user.elite ≠ ''"
+    },
+    {
+      "name": "mean_distance_traveled",
+      "type": "numeric",
+      "source": "log1p(haversine pairwise mean over user's biz)"
+    },
+    {
+      "name": "fav_cuisine_emb",
+      "type": "vector",
+      "dim": 50,
+      "source": "top-3 cuisine pooling over user's reviewed biz"
+    },
+    {
+      "name": "price_tolerance_avg",
+      "type": "numeric",
+      "range": [
+        0,
+        1
+      ],
+      "source": "mean(biz.attributes.RestaurantsPriceRange2) / 4"
+    }
+  ],
+  "item_features": [
+    {
+      "name": "business_id",
+      "type": "embedding",
+      "vocab_size": 9023,
+      "dim": 8,
+      "source": "business.business_id (+ <NEW_BUSINESS> OOV)"
+    },
+    {
+      "name": "avg_rating",
+      "type": "numeric",
+      "range": [
+        0,
+        1
+      ],
+      "source": "Bayesian smoothed (C=10) business.stars / 5"
+    },
+    {
+      "name": "review_count_log",
+      "type": "numeric",
+      "source": "log1p(business.review_count)"
+    },
+    {
+      "name": "price_level",
+      "type": "ordinal",
+      "range": [
+        1,
+        4
+      ],
+      "source": "business.attributes.RestaurantsPriceRange2"
+    },
+    {
+      "name": "is_open",
+      "type": "binary",
+      "source": "business.is_open"
+    },
+    {
+      "name": "has_outdoor_seating",
+      "type": "binary",
+      "source": "business.attributes.OutdoorSeating == True"
+    },
+    {
+      "name": "photo_count_log",
+      "type": "numeric",
+      "source": "log1p(business.review_count) clip(0,10) — proxy"
+    },
+    {
+      "name": "categories_multi_hot",
+      "type": "vector",
+      "dim": 50,
+      "source": "multi-hot over cuisine_vocab"
+    },
+    {
+      "name": "city_id",
+      "type": "embedding",
+      "vocab_size": 4,
+      "dim": 4,
+      "source": "business.city → city_id_map"
+    }
+  ],
+  "context_features": [
+    {
+      "name": "distance_from_user_km_log",
+      "type": "numeric",
+      "source": "haversine(user_lat_lon, biz_lat_lon) → log1p"
+    },
+    {
+      "name": "hour_bucket",
+      "type": "cyclic",
+      "source": "review.date.hour → sin/cos + 3-bucket (early/lunch/dinner)"
+    },
+    {
+      "name": "day_of_week",
+      "type": "categorical",
+      "vocab_size": 7,
+      "source": "review.date.weekday"
+    },
+    {
+      "name": "is_weekend",
+      "type": "binary",
+      "source": "day_of_week ∈ {Sat, Sun}"
+    },
+    {
+      "name": "trip_day_index",
+      "type": "numeric",
+      "range": [
+        0,
+        1
+      ],
+      "source": "trip context (synthesized for training; real for F2 deploy)"
+    },
+    {
+      "name": "region_cluster_id",
+      "type": "embedding",
+      "vocab_size": 9,
+      "dim": 4,
+      "source": "k-means(k=8) on biz lat/lon per city"
+    },
+    {
+      "name": "period_id",
+      "type": "categorical",
+      "vocab_size": 4,
+      "source": "F2 trip period (morning/afternoon/evening) + <UNK> for non-trip"
+    },
+    {
+      "name": "activity_emb",
+      "type": "vector",
+      "dim": 32,
+      "source": "sentence-transformer all-MiniLM-L6-v2 → PCA(32) on F2 activity text; zeros for non-trip"
+    },
+    {
+      "name": "prior_meals_cuisines",
+      "type": "vector",
+      "dim": 50,
+      "source": "multi-hot of cuisines already chosen earlier in trip; zeros for non-trip"
+    }
+  ],
+  "total_features": 26,
+  "total_input_dim_estimate": 234,
+  "missing_handling": {
+    "numeric": "fillna(global median)",
+    "categorical": "<UNK> embedding (reserved index 0)",
+    "user_id_OOV": "<NEW_USER> reserved index for new Taste hunter users (deploy-time)",
+    "trip_features_non_trip": "trip_day_index=0, period_id=<UNK>, activity_emb=zeros, prior_meals_cuisines=zeros"
+  }
+}

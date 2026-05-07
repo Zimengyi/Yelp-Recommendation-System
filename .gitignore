@@ -29,11 +29,12 @@ data/raw/*
 # Cleaned + features — reproducible by running scripts/
 data/cleaned/*
 !data/cleaned/.gitkeep
-# tiny JSONs (cuisine_vocab + feature_spec) are committed; rest of features/ is regenerable
+# tiny JSONs are committed for team visibility; parquet/big artifacts regenerable
 data/features/*
 !data/features/.gitkeep
 !data/features/cuisine_vocab.json
 !data/features/feature_spec.json
+!data/features/region_clusters.json
 
 # Big intermediates
 *.parquet
