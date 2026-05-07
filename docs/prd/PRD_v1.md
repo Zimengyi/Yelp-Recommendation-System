@@ -26,6 +26,7 @@
 | 2026-05-04 | Deadline 锁定 2026-05-23（确认值，非估算） | Haobo |
 | 2026-05-04 | §3 Requirement Details 全节合入（4-Sib 并行产出 + 合并体检）：§3.1 UI · §3.2 LLM · §3.3 推荐模型 · §3.4 评测系统 | Haobo |
 | 2026-05-04 | §3 v2 升级（4-Sib 第二轮）：基于 Figma Make 原型 audit 重写 §3.1（F1.1 bottom-sheet + F2 day-tab）、§3.2 重组为 10 个产品场景 S1-S10、§3.3 加 H9/H10 + 3 新特征 + MMR 子节、§3.4 加 4 trip 维度 + Trip 独立评测协议 | Haobo |
+| 2026-05-06 | v2.2 升级：§3.3.4 升级为「单 DeepFM + 双路召回」架构（S1 push = Two-Tower stretch / S2-S6 CRS = LLM intent + hard filter）；3 城市锁定 Philadelphia + Tucson + Tampa；Phase 1 数据准备完成（9K 餐厅, 1M reviews, 359K users）；Sib 体检 28 处跨文档一致性修复 | Haobo |
 
 ### 关联文件
 
@@ -74,9 +75,9 @@
 
 > [!example] 用户旅程（对应 wireframe v1）
 >
-> **左图（F1 主屏）** —— 用户打开 chatbot，默认渲染卡片流：基于当前位置 + 周榜热度，给出当日推荐（例：上午 10 点 Moonlark's Dinette · 晚上 7 点 Water Grill）。每张卡片含图片 / 时间建议 / 名字 / 评分 / 类别 / 一句话描述。底部有持续输入框，可继续对话精化。
+> **左图（F1 主屏）** —— 用户打开 chatbot，默认渲染卡片流：基于当前位置 + 周榜热度，给出当日推荐（例：Philadelphia 上午 10 点 Zahav · 晚上 7 点 Vernick Food & Drink）。每张卡片含图片 / 时间建议 / 名字 / 评分 / 类别 / 一句话描述。底部有持续输入框，可继续对话精化。
 >
-> **右图（F2 Trip Plan 视图）** —— 用户点顶部 "Trip plan" 按钮，输入多日行程（例：LA 3 天）。系统按日组织（DAY 3 · Philadelphia Center City + Old City），每天 morning/lunch/dinner 各一家，区域内距离合理 + 跨日 cuisine 多样化。卡片右上 "Open route" 一键拉起地图导航 / "Copy" 复制行程文本。
+> **右图（F2 Trip Plan 视图）** —— 用户点顶部 "Trip plan" 按钮，输入多日行程（例：Philadelphia 3 天）。系统按 day-tab 组织（DAY 3 · Center City + Old City），每天每时段（morning / lunch / dinner）各展示 3 个候选卡片（indicator dots 标注当前选中），区域内距离合理 + 跨日 cuisine 多样化。详见 §3.1.3 F2 trip plan 规格（day-tab + activity 描述 + 每段 3 候选 + indicator dots）。
 >
 > **关键差异化** —— 不是"列出附近餐厅"（Google Maps 已经能做），而是**理解用户对话上下文 + 行程结构后**给出受约束的推荐。约束维度：地理（同区域）、时段（早午晚匹配营业时间）、多样性（跨日不重 cuisine）、个人偏好（对话中累积）。这套约束注入到 DeepFM 的 ranking 阶段作为 context features。
 
@@ -146,7 +147,7 @@
 >
 > 重要边界：UI 在 ML2 rubric 的 8 项评分中不单独计分；其存在目的是为推荐模型提供端到端可演示的上下文，并为 EDA / future work 段提供数据流锚点。精力分配目标：模型 70% / Agent 20% / 前端 10%。
 
-完整内容见独立文件 **v2**：[`PRD_v1_section3.1_UI_v2.md`](./PRD_v1_section3.1_UI_v2.md)（516 行；基于 Figma Make 原型 audit 重写，F1.1 改为 bottom-sheet + 底部中央 nav，F2 改为 day-tab + activity 描述 + 每段 3 候选）。v1 见 [`PRD_v1_section3.1_UI.md`](./PRD_v1_section3.1_UI.md)（已 deprecated）。
+完整内容见独立文件 **v2**：[`PRD_v1_section3.1_UI_v2.md`](./PRD_v1_section3.1_UI_v2.md)（516 行；基于 Figma Make 原型 audit 重写，F1.1 改为 bottom-sheet + 底部中央 nav，F2 改为 day-tab + activity 描述 + 每段 3 候选）。v1 见 `PRD_v1_section3.1_UI.md`（v1 已 deprecated，仅 v2 文件保留）。
 
 > 渲染时由 Markdown 工具链 inline transclude（Obsidian / Foam / mdx 均支持 `![[...]]` 或 `<embed>`）；冷渲染场景下读独立文件即可。
 
@@ -158,7 +159,7 @@
 <!-- §3.2 — Sib B · LLM Workflow                                  -->
 <!-- ============================================================ -->
 
-完整内容见独立文件 **v2**：[`PRD_v1_section3.2_LLM_v2.md`](./PRD_v1_section3.2_LLM_v2.md)（1254 行；按 10 个产品功能场景重组 S1-S10，每个场景含触发条件 / 输入数据表 / 工作流（含 LLM prompt 全文）/ 输出 schema；新增 `summarize_reviews_for_overview` 和 `modify_trip_slot` 两个 tool；新增 trip 场景 fallback；按场景重新估算成本）。v1 见 [`PRD_v1_section3.2_LLM.md`](./PRD_v1_section3.2_LLM.md)（已 deprecated）。
+完整内容见独立文件 **v2**：[`PRD_v1_section3.2_LLM_v2.md`](./PRD_v1_section3.2_LLM_v2.md)（1254 行；按 10 个产品功能场景重组 S1-S10，每个场景含触发条件 / 输入数据表 / 工作流（含 LLM prompt 全文）/ 输出 schema；新增 `summarize_reviews_for_overview` 和 `modify_trip_slot` 两个 tool；新增 trip 场景 fallback；按场景重新估算成本）。v1 见 `PRD_v1_section3.2_LLM.md`（v1 已 deprecated，仅 v2 文件保留）。
 
 ![[PRD_v1_section3.2_LLM_v2]]
 
@@ -168,7 +169,7 @@
 <!-- §3.3 — Sib C · 推荐模型 Spec（ML2 评分主战场）                  -->
 <!-- ============================================================ -->
 
-完整内容见独立文件 **v2**：[`PRD_v1_section3.3_Model_v2.md`](./PRD_v1_section3.3_Model_v2.md)（559 行；新增 H9/H10 假设、3 个新 context 特征（period_id / activity_emb / prior_meals_cuisines，特征数 23 → 26）、新子节 §3.3.4.5 MMR 重排 + 启发式约束层、L7/L8 风险）。v1 见 [`PRD_v1_section3.3_Model.md`](./PRD_v1_section3.3_Model.md)（已 deprecated）。
+完整内容见独立文件 **v2**：[`PRD_v1_section3.3_Model_v2.md`](./PRD_v1_section3.3_Model_v2.md)（559 行；新增 H9/H10 假设、3 个新 context 特征（period_id / activity_emb / prior_meals_cuisines，特征数 23 → 26）、新子节 §3.3.4.5 MMR 重排 + 启发式约束层、L7/L8 风险）。v1 见 `PRD_v1_section3.3_Model.md`（v1 已 deprecated，仅 v2 文件保留）。
 
 ![[PRD_v1_section3.3_Model_v2]]
 
@@ -178,7 +179,7 @@
 <!-- §3.4 — Sib D · 评测系统                                       -->
 <!-- ============================================================ -->
 
-完整内容见独立文件 **v2**：[`PRD_v1_section3.4_Eval_v2.md`](./PRD_v1_section3.4_Eval_v2.md)（248 行；新增 4 个 trip 评测维度（Trip Diversity Simpson 系数 / Geographic Compactness / Activity-Restaurant Match / Per-Period Candidate Diversity）、4 个新 case C9-C12、3 个 Agent trip 子维度、新子节 §3.4.4b Trip 独立评测协议（12 个手工 trip case + 3 ablation 设计））。v1 见 [`PRD_v1_section3.4_Eval.md`](./PRD_v1_section3.4_Eval.md)（已 deprecated）。
+完整内容见独立文件 **v2**：[`PRD_v1_section3.4_Eval_v2.md`](./PRD_v1_section3.4_Eval_v2.md)（248 行；新增 4 个 trip 评测维度（Trip Diversity Simpson 系数 / Geographic Compactness / Activity-Restaurant Match / Per-Period Candidate Diversity）、4 个新 case C9-C12、3 个 Agent trip 子维度、新子节 §3.4.4b Trip 独立评测协议（12 个手工 trip case + 3 ablation 设计））。v1 见 `PRD_v1_section3.4_Eval.md`（v1 已 deprecated，仅 v2 文件保留）。
 
 ![[PRD_v1_section3.4_Eval_v2]]
 

@@ -4,9 +4,9 @@
 > **Owner**：Haobo Yang · 本节覆盖 Layer A（离线模型评测）+ Layer B（Agent 层评测）+ Layer C（课程 rubric 自检）三层
 > **状态**：结构 + 目标值 ✅ 完成；实际数字 ⏳ w8 末填入
 
-> [!warning] v2 Update Note — 2026-05-04
+> [!warning] v2 Update Note — 2026-05-06
 >
-> 本版本（v2）在 v1 基础上增补了 trip plan 流的全套评测规格，依据 `figma_make_audit.md` Section 8 的 ground truth。主要变化：§3.4.1 新增 4 个 trip-specific 离线指标（Trip Diversity / Geographic Compactness / Activity-Restaurant Semantic Match / Per-Period Candidate Diversity）；§3.4.2 新增 C9-C12 四个 trip 场景测试样例；§3.4.4 新增 Itinerary Parsing / Activity 文案合理性 / modify_trip_slot 三个 Agent 评测子维度；新增 §3.4.4b "Trip 场景独立评测协议"子节；§3.4.5 / §3.4.6 / §3.4.7 / §3.4.8 各有小幅扩充。v1 的全部 9 个子节结构完整保留，所有原有内容原样保持。
+> 本版本（v2）在 v1 基础上增补了 trip plan 流的全套评测规格，依据 `figma_make_audit.md` Section 8 的 ground truth。主要变化：§3.4.1 新增 4 个 trip-specific 离线指标（Trip Diversity / Geographic Compactness / Activity-Restaurant Semantic Match / Per-Period Candidate Diversity）；§3.4.2 新增 C9-C12 四个 trip 场景测试样例；§3.4.4 新增 Itinerary Parsing / Activity 文案合理性 / modify_trip_slot 三个 Agent 评测子维度；新增 §3.4.4b "Trip 场景独立评测协议"子节；§3.4.5 / §3.4.6 / §3.4.7 / §3.4.8 各有小幅扩充。v1 的全部 9 个子节结构完整保留，所有原有内容原样保持。本节城市表述（Philadelphia / Tucson / Tampa）已在 v2.2 doc 清理（2026-05-06）中同步更新到 v2.2 三城市定义。
 
 ---
 

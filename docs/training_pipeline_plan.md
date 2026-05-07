@@ -49,8 +49,8 @@ canvas/ml2/project/
 
 | Phase                                        | 日期范围               | 主要交付                                        | Owner                  | 工期   |
 | -------------------------------------------- | ------------------ | ------------------------------------------- | ---------------------- | ---- |
-| **0. 同步对齐**                                  | 5/5 周二             | 团队对齐 PRD v2 + 本计划                           | All                    | 1d   |
-| **1. 数据准备**                                  | 5/6 – 5/8          | filter 后的 parquet（user / business / review） | Haobo                  | 3d   |
+| **0. 同步对齐** ✅                               | 5/5 周二             | 团队对齐 PRD v2 + 本计划（已完成，PRD v2.2 锁定 5/6）       | All                    | 1d   |
+| **1. 数据准备** ✅                               | 5/6 – 5/8          | filter 后的 parquet（user / business / review）（已完成：9K 餐厅 / 1M reviews / 359K users，Phase 1 commit 1cb2230） | Haobo                  | 3d   |
 | **2. EDA**                                   | 5/6 – 5/11（与 1 并行） | 11 个 Q 答案 + 8 张图 + cuisine_vocab            | Zimeng + Cindy         | 6d   |
 | **3. 特征工程**                                  | 5/9 – 5/11         | feature 表 + 26 维度 numpy 矩阵 + spec.json      | Haobo                  | 3d   |
 | **4. Baseline 模型**                           | 5/12 – 5/13        | MF + FM 训练完毕 + val metric                   | Haobo                  | 2d   |
@@ -493,7 +493,7 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 |---|---|
 | Learning curve（train/val AUC vs epoch）| Criterion 5（overfit/underfit check） |
 | Hyperparam sweep heatmap（dropout × L2）| Criterion 6 |
-| 4-model ablation bar chart（MF / FM / DeepFM / +Two-Tower+MMR）| Criterion 7 |
+| 5-row ablation 比较表（MF / FM / DeepFM / Two-Tower→DeepFM / +MMR trip mode）| Criterion 7（对应 §3.4.6 5 行结果表）|
 | Cold-start vs general user 对比 | Criterion 7 / H6 |
 | Trip Diversity 对比 score-greedy vs MMR | Criterion 7 / H10 |
 
@@ -573,7 +573,7 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 | 4. Feature Engineering | 抄 PRD §3.3.3 26 特征表 | 0.5h |
 | 5. Approaches + overfit/underfit | DeepFM 架构 + sweep 结果 + 学习曲线 | 2h |
 | 6. Solution + regularization | 最终 config 表 + dropout/L2 heatmap | 1h |
-| 7. Results + Learnings | §3.4.6 4-model 比较表 + ablation + 4 bullet learnings | 2h |
+| 7. Results + Learnings | §3.4.6 5-row 比较表（MF/FM/DeepFM/Two-Tower→DeepFM/+MMR trip）+ ablation + 6 bullet learnings（含 H9/H10）| 2h |
 | 8. Future Work | online A/B / GRU4Rec / xDeepFM / 真实 trip 数据 | 0.5h |
 | **Total** | | **9h** |
 
@@ -588,7 +588,7 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 - [ ] 4. Feature Engineering — 26 特征表
 - [ ] 5. Approaches + overfit/underfit — DeepFM + sweep + learning curve
 - [ ] 6. Solution + regularization — final config + dropout/L2 heatmap
-- [ ] 7. Results + Learnings — 4-model 表 + ablation + learnings
+- [ ] 7. Results + Learnings — 5-row 比较表（§3.4.6）+ ablation + learnings（H9/H10 覆盖）
 - [ ] 8. Future Work — bullet list
 
 ### 9.3 提交准备（5/22 晚）

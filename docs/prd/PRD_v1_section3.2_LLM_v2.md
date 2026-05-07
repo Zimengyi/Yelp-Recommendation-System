@@ -19,7 +19,7 @@ flowchart LR
     A([USER_INPUT\nfree text]) --> B[INTENT_EXTRACTION\nStep 1 · claude-sonnet-4-6\nstructured output via tool_use]
     B --> C{TOOL_DISPATCH\nStep 2 · claude-sonnet-4-6\npicks ONE tool}
 
-    C -->|recommendation\nrequest| D[recommend_restaurants\nDeepFM ranker\nover Two-Tower candidates]
+    C -->|recommendation\nrequest| D[recommend_restaurants\nDeepFM ranker\nS1: Two-Tower recall\nS2/S6: intent+filter recall]
     C -->|trip planning\nrequest| E[plan_trip\nheuristic over\nrecommend_restaurants]
     C -->|detail lookup| F[get_restaurant_detail\nYelp record +\nAI Overview sub-call]
 
@@ -1060,7 +1060,7 @@ interface S10Output {
 
 | Tool 名称 | 用途 | Input Type | Output Type | Backend 实现 | 新增于 |
 |---|---|---|---|---|---|
-| `recommend_restaurants` | Top-K 个性化 + 上下文感知餐厅推荐（S1 / S2 / S3 / S6 / S10） | `RecommendInput` | `RecommendOutput` | Two-Tower 召回 → DeepFM 精排，返回 top-K | v1 |
+| `recommend_restaurants` | Top-K 个性化 + 上下文感知餐厅推荐（S1 / S2 / S3 / S6 / S10） | `RecommendInput` | `RecommendOutput` | v2.2 双路召回：S1 push 路 Two-Tower 召回 → DeepFM 精排；S2/S6 CRS 路 LLM intent + hard filter → DeepFM 精排，返回 top-K | v1 |
 | `plan_trip` | 多日行程规划（S6）—— 内部触发行程解析 + 活动序列生成 + 9× recommend | `TripPlanInput`（v2 更新） | `TripPlanOutput` | 启发式层 + 多次 recommend + diversity re-rank | v1（schema 更新） |
 | `get_restaurant_detail` | 拉取商家完整 Yelp 记录 + AI Overview（S4 / S5） | `DetailInput` | `RestaurantDetail` | Yelp 数据查询 + `summarize_reviews_for_overview` 子 tool | v1 |
 | `summarize_reviews_for_overview` | AI Overview 生成子 tool（S4 / S5 cache miss） | `AIOverviewSubInput` | `AIOverviewSubOutput` | 内部调用 Sonnet 4.6，使用 S4 完整 prompt | **v2 新增** |
