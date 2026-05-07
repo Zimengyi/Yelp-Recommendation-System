@@ -1,0 +1,78 @@
+# ──────────────────── Python ────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# ──────────────────── Virtual envs ────────────────────
+venv/
+env/
+.venv/
+.env/
+ENV/
+
+# ──────────────────── Jupyter ────────────────────
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+profile_default/
+
+# ──────────────────── Data (large / reproducible from raw) ────────────────────
+# Raw Yelp data — get from official Yelp Open Dataset, not committed
+data/raw/*
+!data/raw/.gitkeep
+
+# Cleaned + features — reproducible by running scripts/
+data/cleaned/*
+!data/cleaned/.gitkeep
+data/features/*
+!data/features/.gitkeep
+
+# Big intermediates
+*.parquet
+*.feather
+*.arrow
+!data/sample/*.parquet  # tiny demo samples can be committed
+
+# ──────────────────── Model artifacts ────────────────────
+models/*
+!models/.gitkeep
+*.pt
+*.pth
+*.pkl
+*.joblib
+*.ckpt
+*.safetensors
+
+# ──────────────────── Reports / figures (regenerable) ────────────────────
+reports/figures/*.png
+reports/figures/*.svg
+reports/figures/*.pdf
+!reports/figures/.gitkeep
+
+# ──────────────────── OS / IDE ────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ──────────────────── Secrets / config ────────────────────
+.env
+.env.local
+*.key
+secrets/
+credentials.json
+*api_key*
+*ANTHROPIC*
+
+# ──────────────────── Misc ────────────────────
+*.log
+logs/
+tmp/
+.cache/
