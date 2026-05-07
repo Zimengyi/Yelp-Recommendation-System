@@ -40,7 +40,7 @@
     {
       "name": "elite_flag",
       "type": "binary",
-      "source": "user.elite ≠ ''"
+      "source": "user.elite != ''"
     },
     {
       "name": "mean_distance_traveled",
@@ -107,7 +107,7 @@
     {
       "name": "photo_count_log",
       "type": "numeric",
-      "source": "log1p(business.review_count) clip(0,10) — proxy"
+      "source": "log1p(business.review_count) clip(0,10) - proxy"
     },
     {
       "name": "categories_multi_hot",
@@ -120,19 +120,19 @@
       "type": "embedding",
       "vocab_size": 4,
       "dim": 4,
-      "source": "business.city → city_id_map"
+      "source": "business.city -> city_id_map"
     }
   ],
   "context_features": [
     {
       "name": "distance_from_user_km_log",
       "type": "numeric",
-      "source": "haversine(user_lat_lon, biz_lat_lon) → log1p"
+      "source": "haversine(user_lat_lon, biz_lat_lon) -> log1p"
     },
     {
       "name": "hour_bucket",
       "type": "cyclic",
-      "source": "review.date.hour → sin/cos + 3-bucket (early/lunch/dinner)"
+      "source": "review.date.hour -> sin/cos + 3-bucket"
     },
     {
       "name": "day_of_week",
@@ -143,7 +143,7 @@
     {
       "name": "is_weekend",
       "type": "binary",
-      "source": "day_of_week ∈ {Sat, Sun}"
+      "source": "day_of_week in {Sat, Sun}"
     },
     {
       "name": "trip_day_index",
@@ -165,13 +165,13 @@
       "name": "period_id",
       "type": "categorical",
       "vocab_size": 4,
-      "source": "F2 trip period (morning/afternoon/evening) + <UNK> for non-trip"
+      "source": "F2 trip period (morning/afternoon/evening) + <UNK>"
     },
     {
       "name": "activity_emb",
       "type": "vector",
       "dim": 32,
-      "source": "sentence-transformer all-MiniLM-L6-v2 → PCA(32) on F2 activity text; zeros for non-trip"
+      "source": "sentence-transformer all-MiniLM-L6-v2 -> PCA(32) on F2 activity text; zeros for non-trip"
     },
     {
       "name": "prior_meals_cuisines",
@@ -185,7 +185,7 @@
   "missing_handling": {
     "numeric": "fillna(global median)",
     "categorical": "<UNK> embedding (reserved index 0)",
-    "user_id_OOV": "<NEW_USER> reserved index for new Taste hunter users (deploy-time)",
+    "user_id_OOV": "<NEW_USER> reserved for new Taste hunter users",
     "trip_features_non_trip": "trip_day_index=0, period_id=<UNK>, activity_emb=zeros, prior_meals_cuisines=zeros"
   }
 }
