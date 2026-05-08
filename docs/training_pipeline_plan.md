@@ -496,21 +496,46 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 
 **Owner**：Haobo · **工期**：1 天 · **前置依赖**：Phase 5 + 6 完成
 
+> **v2 评测增量（2026-05-07 加入）**：
+> - 加 **Cold-start ITEM subset**（区分 USER cold-start vs ITEM cold-start，验证 ColBERT-light 真正卖点）
+> - 加 **v1 vs v2 ablation**（DeepFM 加不加 `item_text_emb_pca32` 对比）
+> - 加 **两阶段 retrieval+rerank 联合评测**（Two-Tower top-200 → DeepFM rerank vs DeepFM full 9K）
+> - 加 **Sub-cohort breakdown**（NDCG@10 分用户活跃度 / cold-start / cross-city 切片）
+
 ### 7.1 Test Split 一次性评测（不可重复！）
 
 | 步骤 | 详细 |
 |---|---|
-| **7.1.1** | 用 5.4.3 的 final config，在完全没碰过的 test split 上跑一次 |
-| **7.1.2** | 计算 §3.4.1 的 9 维度指标：AUC / NDCG@10 / Recall@10 / Precision@10 / Coverage@10 / Gini popularity bias / Long-tail Recall / Cold-start AUC / Cross-city AUC |
-| **7.1.3** | 数字写入 §3.4.6 占位表，**不可再调参**（否则 test 失去意义）|
+| **7.1.1** | 用 5.4.3 的 final config（v2，含 text_emb），在完全没碰过的 test split 上跑一次 |
+| **7.1.2** | **v1 vs v2 ablation**：用 5.4.3 v1 config（没 text_emb）也跑一次，作为对照 |
+| **7.1.3** | 计算 §3.4.1 的 9 维度指标：AUC / NDCG@10 / Recall@10 / Precision@10 / Coverage@10 / Gini / Long-tail Recall / Cold-start AUC / Cross-city AUC |
+| **7.1.4** | 在 4 个 subset 上分别跑：(a) general test (b) cold-start USER subset (Phase 1 已抽出) (c) **cold-start ITEM subset** (test 里 train 没见过的 business_id，Phase 1 需要补抽) (d) cross-city subset |
+| **7.1.5** | 数字写入 §3.4.6 占位表，**不可再调参**（否则 test 失去意义）|
 
-**时间预估**：2-3 小时
+**时间预估**：3-4 小时（v2 + v1 + 4 subsets × 2 models = 8 评测）
 **验收标准**：
-- [ ] AUC ≥ 0.75
-- [ ] NDCG@10 ≥ 0.30
-- [ ] Cold-start AUC ≥ 0.65
+- [ ] General AUC ≥ 0.83 / NDCG@10 ≥ 0.32（基于 5.2 v1 emb=32 实测，v2 应该差不多或略高）
+- [ ] Cold-start USER NDCG@10 衰减 ≤ 0.10（vs general）
+- [ ] **Cold-start ITEM v2 NDCG@10 - v1 NDCG@10 ≥ +0.02**（验证 ColBERT-light 价值）
+- [ ] Cross-city NDCG@10 衰减 ≤ 0.05（vs general，验证 H8）
 
-### 7.2 Trip 场景评测（4 个 metric）
+### 7.2 (NEW) 两阶段 retrieval + rerank 联合评测
+
+**目的**：验证 production 部署 pipeline（Two-Tower 召回 → DeepFM 精排）vs 直接 DeepFM full-pool brute-force 的精度损失 vs 延迟收益。
+
+| 步骤 | 详细 |
+|---|---|
+| **7.2.1** | Pipeline A: DeepFM brute-force on 9K → top-10 → NDCG@10 / Recall@10 + latency |
+| **7.2.2** | Pipeline B: Two-Tower top-200 → DeepFM rerank → top-10 → 同上 metrics |
+| **7.2.3** | 画 Pareto 曲线：Recall@K (K∈{50, 100, 200, 500, 1000}) vs latency p50 |
+| **7.2.4** | 报告 trade-off：Pipeline B 损失 X NDCG@10 换 Y× latency 加速 |
+
+**时间预估**：1-2 小时（已经训好的模型，只是 inference）
+**验收标准**：
+- [ ] Pipeline B NDCG@10 ≥ Pipeline A NDCG@10 - 0.03（损失 < 0.03）
+- [ ] Pipeline B latency p50 ≤ Pipeline A latency / 30 (>30× 加速)
+
+### 7.3 Trip 场景评测（4 个 metric，原 7.2）
 
 | 步骤 | 详细 |
 |---|---|
@@ -524,17 +549,34 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 - [ ] Geographic Compactness < 5km
 - [ ] Per-Period Diversity ≥ 0.66
 
-### 7.3 图表生成
+### 7.4 (NEW) Sub-cohort breakdown
+
+**目的**：不要只给一个全局 NDCG，按 **3 个正交维度**切片（user 活跃度 / item 活跃度 / 旅行状态），揭示模型在哪类组合上表现好/差。给 Final Report 提供 qualitative analysis 素材。
+
+> **设计 rationale**：原方案的"by user activity quartile" 和 "by cold-start status" 是**同一拨人**（rc<5 = Q4 = cold-start user），两栏重复。改成 **USER 维度 + ITEM 维度 + 旅行维度** 三个正交轴，每个轴的切片各自独立。
+
+| 切片维度 | 切法 | 揭示什么 |
+|---|---|---|
+| **7.4.1 USER 活跃度（quartile）** | 按 `review_count` 分 Q1 (rc≥30) / Q2 (10–29) / Q3 (5–9) / Q4 (<5) | 模型对长尾用户表现多差。Q1 vs Q4 差距大 → user_id emb 严重过拟合 head 用户（关联 5.5 ablation）|
+| **7.4.2 ITEM 活跃度（quartile）** | 按商家 `review_count` 分 Q1 (rc≥100) / Q2 (30–99) / Q3 (10–29) / Q4 (<10，cold-start ITEM) | 模型对长尾餐厅推荐效果。Q4 是 ColBERT-light 的真正用武之地——v2 vs v1 在 Q4 上的差距是核心证据 |
+| **7.4.3 用户旅行状态** | single-city 用户 vs ≥2 城旅行者（cross-city subset）对比 | 验证 H8：cross-city 衰减 ≤0.05，决定 F2 trip mode demo 可行性 |
+
+**时间预估**：1-2 小时（同 7.1 的 inference 复用，只多加切分 + 表格代码）
+**输出**：3 张 breakdown 表 + 1 张 9-cell heatmap (USER quartile × ITEM quartile)，整段 paragraph error analysis 可直接放进 Final Report
+
+### 7.5 图表生成（原 7.3）
 
 | 图表 | 用途 |
 |---|---|
 | Learning curve（train/val AUC vs epoch）| Criterion 5（overfit/underfit check） |
 | Hyperparam sweep heatmap（dropout × L2）| Criterion 6 |
-| 5-row ablation 比较表（MF / FM / DeepFM / Two-Tower→DeepFM / +MMR trip mode）| Criterion 7（对应 §3.4.6 5 行结果表）|
-| Cold-start vs general user 对比 | Criterion 7 / H6 |
+| **v1 vs v2 ablation 对比表（含 cold-start ITEM 行）** | Criterion 7 — ColBERT-light 价值证据 |
+| **Two-stage retrieval Pareto 曲线（Recall vs latency）** | Criterion 7 — 工业向 trade-off 卖点 |
+| 5-row ablation 比较表（MF / FM / DeepFM v1 / DeepFM v2 / Two-Tower→DeepFM v3） | Criterion 7（对应 §3.4.6） |
+| **Sub-cohort breakdown bar chart** | Criterion 7 — qualitative analysis |
 | Trip Diversity 对比 score-greedy vs MMR | Criterion 7 / H10 |
 
-**输出**：`reports/figures/*.png` 至少 5 张
+**输出**：`reports/figures/*.png` 至少 7 张
 **时间预估**：3-4 小时
 
 ---
