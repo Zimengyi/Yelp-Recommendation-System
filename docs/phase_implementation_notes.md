@@ -29,6 +29,7 @@
 | `data/cleaned/test_reviews.parquet` | 60 MB | **167,908** | P80–P100 段 |
 | `data/cleaned/coldstart_test_reviews.parquet` | 45 MB | **140,948** (从 119,156 用户) | review_count<5 用户全部 review，整段 hold-out（H7） |
 | `data/cleaned/crosscity_test_reviews.parquet` | 24 MB | **51,720** (从 5,250 用户) | 在 ≥2 城市留过 review 的用户全部 review，整段 hold-out（H8） |
+| `data/cleaned/coldstart_item_test_reviews.parquet` (v2) | 26 MB | **38,387** (从 1,471 unseen 餐厅) | test 里 train 没见过的 business_id 的 reviews。给 Phase 7.4.5 v1 vs v2 ablation 提供 cold-start ITEM 评测样本（验证 ColBERT-light 价值）|
 
 总计三城 reviews **1,032,056** 条（train+val+test）。
 
