@@ -121,6 +121,12 @@
       "vocab_size": 4,
       "dim": 4,
       "source": "business.city -> city_id_map"
+    },
+    {
+      "name": "item_text_emb_pca32",
+      "type": "vector",
+      "dim": 32,
+      "source": "sentence-transformers/all-MiniLM-L6-v2 on (name + categories) -> PCA32 (v2 ColBERT-light)"
     }
   ],
   "context_features": [
@@ -180,8 +186,8 @@
       "source": "multi-hot of cuisines already chosen earlier in trip; zeros for non-trip"
     }
   ],
-  "total_features": 26,
-  "total_input_dim_estimate": 234,
+  "total_features": 27,
+  "total_input_dim_estimate": 266,
   "missing_handling": {
     "numeric": "fillna(global median)",
     "categorical": "<UNK> embedding (reserved index 0)",
