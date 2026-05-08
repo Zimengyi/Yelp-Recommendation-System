@@ -551,18 +551,25 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 
 ### 7.4 (NEW) Sub-cohort breakdown
 
-**目的**：不要只给一个全局 NDCG，按 **3 个正交维度**切片（user 活跃度 / item 活跃度 / 旅行状态），揭示模型在哪类组合上表现好/差。给 Final Report 提供 qualitative analysis 素材。
+**目的**：不要只给一个全局 NDCG，按多个独立 cohort 切片，揭示模型在哪类用户/商家上表现好/差。给 Final Report 提供 qualitative analysis 素材。
 
-> **设计 rationale**：原方案的"by user activity quartile" 和 "by cold-start status" 是**同一拨人**（rc<5 = Q4 = cold-start user），两栏重复。改成 **USER 维度 + ITEM 维度 + 旅行维度** 三个正交轴，每个轴的切片各自独立。
+> **设计 rationale（v2 修订 2026-05-07）**：之前混淆了"test split 内的 Q4 (rc=5-9)" 和 "cold-start (rc<5)"——这俩**不是同一拨人**。Phase 1 把 rc<5 用户**整段 hold out** 到 `coldstart_test_reviews.parquet`，他们**完全不在** `test_reviews.parquet` 里。所以 USER 维度有 4 个**真正独立**的 cohort（test 内 active / test 内 casual / cold-start / cross-city），不能合并成一个 quartile。
 
-| 切片维度 | 切法 | 揭示什么 |
-|---|---|---|
-| **7.4.1 USER 活跃度（quartile）** | 按 `review_count` 分 Q1 (rc≥30) / Q2 (10–29) / Q3 (5–9) / Q4 (<5) | 模型对长尾用户表现多差。Q1 vs Q4 差距大 → user_id emb 严重过拟合 head 用户（关联 5.5 ablation）|
-| **7.4.2 ITEM 活跃度（quartile）** | 按商家 `review_count` 分 Q1 (rc≥100) / Q2 (30–99) / Q3 (10–29) / Q4 (<10，cold-start ITEM) | 模型对长尾餐厅推荐效果。Q4 是 ColBERT-light 的真正用武之地——v2 vs v1 在 Q4 上的差距是核心证据 |
-| **7.4.3 用户旅行状态** | single-city 用户 vs ≥2 城旅行者（cross-city subset）对比 | 验证 H8：cross-city 衰减 ≤0.05，决定 F2 trip mode demo 可行性 |
+| Cohort | 来源 | 模型 user_id 见过？ | 揭示什么 |
+|---|---|---|---|
+| **7.4.1 test active 用户** (rc≥30) | `test_reviews.parquet` 里 rc≥30 子集 | ✅ train 里大量更新 | 模型上限——active 用户的 NDCG 是天花板 |
+| **7.4.2 test casual 用户** (5≤rc<30) | `test_reviews.parquet` 里 rc=5-29 子集 | ✅ train 里少量更新 | active vs casual 差距 → user_id emb 长尾问题（关联 5.5 ablation） |
+| **7.4.3 cold-start 用户** (rc<5) | `coldstart_test_reviews.parquet`（Phase 1 整段 hold out，119K 用户 / 141K reviews） | ❌ **从未在 train 见过 user_id**，emb 仍是初始值 | **H7 验证**：完全冷启动衰减多少 |
+| **7.4.4 cross-city 旅行者** | `crosscity_test_reviews.parquet`（Phase 1 整段 hold out，5,250 用户 / 52K reviews） | ❌ 同上 | **H8 验证**：跨城泛化，决定 F2 trip mode 可行性 |
+| **7.4.5 ITEM 活跃度（quartile）** | 按商家 `review_count` 分 Q1 (rc≥100) / Q2 (30–99) / Q3 (10–29) / Q4 (<10，cold-start ITEM) | — (这是 item 维度) | Q4 是 ColBERT-light 真正用武之地——**v2 vs v1 在 Q4 上的差距**是核心证据 |
 
-**时间预估**：1-2 小时（同 7.1 的 inference 复用，只多加切分 + 表格代码）
-**输出**：3 张 breakdown 表 + 1 张 9-cell heatmap (USER quartile × ITEM quartile)，整段 paragraph error analysis 可直接放进 Final Report
+**时间预估**：1-2 小时（同 7.1 的 inference 复用，多加切分 + 表格代码）
+**输出**：5 行 breakdown 表 + 可选的 (USER cohort × ITEM quartile) 5×4 heatmap，整段 paragraph error analysis 可直接放进 Final Report
+
+**关键比较**：
+- 7.4.1 vs 7.4.2：揭示 user_id emb 在 head/tail 之间的过拟合差距
+- 7.4.1 vs 7.4.3：揭示完全 OOV 时模型损失多少（H7 假设）
+- 7.4.5 v1 vs v2：揭示 ColBERT-light 是不是真的救了 cold-start ITEM
 
 ### 7.5 图表生成（原 7.3）
 
