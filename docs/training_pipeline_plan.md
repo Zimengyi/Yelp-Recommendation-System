@@ -502,6 +502,71 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 > - 加 **两阶段 retrieval+rerank 联合评测**（Two-Tower top-200 → DeepFM rerank vs DeepFM full 9K）
 > - 加 **Sub-cohort breakdown**（NDCG@10 分用户活跃度 / cold-start / cross-city 切片）
 
+### 7.0 评测的最小单位与基本机制（先理解这个再读后面的细节）
+
+**评测的最小单位永远是 `(user, positive_item)` 对**——不是单独 user 也不是单独 item。
+
+每个 val/test 集里的"事件"长这样：
+```
+User A 在 2024-08-15 去了 Joe's Pizza 给 5 星
+→ 构成一对 (user=A, positive_item=Joe's Pizza)
+```
+
+#### 单条评测做什么
+
+```
+1. 拿出 (user A, Joe's Pizza)
+2. 在 Joe's 所在城市（Philadelphia）找 99 家 user A 没去过的餐厅 → 99 个负样本
+3. Joe's + 99 个负样本 = 100 个候选，全部喂模型打分
+4. 看 Joe's 排第几：
+     第 1 位 → NDCG@10 = 1.0
+     第 3 位 → NDCG@10 ≈ 0.50
+     第 10 位 → NDCG@10 ≈ 0.30
+     第 11+ 位 → NDCG@10 = 0（掉出 top-10）
+5. 把所有 (user, item) 对的 NDCG@10 求平均 → 这一组的最终分
+```
+
+#### USER 维度 vs ITEM 维度差别只在"挑哪些对子来平均"
+
+**评测流程完全一样，只是过滤条件不同**：
+
+| 维度 | 过滤条件 | 揭示 |
+|---|---|---|
+| 7.4.1 active USER | 只算 `user.review_count ≥ 30` 的对子 | 模型上限 |
+| 7.4.2 casual USER | 只算 `5 ≤ user.review_count < 30` | head/tail 用户差距 |
+| 7.4.3 cold-start USER | 只算 `user.review_count < 5`（held-out 子集 119K 用户）| H7 完全 OOV 时衰减 |
+| 7.4.4 cross-city USER | 只算 `≥2 城旅行者`（held-out 子集 5,250 用户）| H8 跨城迁移衰减 |
+| **7.4.5 cold-start ITEM** | 只算 `positive_item ∉ train.business_id`（1,471 餐厅 / 38,387 reviews）| ColBERT-light 在长尾商家的实际收益 |
+
+#### Cold-start ITEM 的具体例子（v1 vs v2 价值）
+
+```
+test 里：User Bob 在 2024-09-10 去了 "Mario's Tucson Bistro" 给 5 星
+       Mario's 在 train 从没出现过 → 属于 cold-start ITEM Q4
+
+评测对子：(Bob, Mario's) + 99 个 Tucson 同城负样本
+
+【v1 模型，没 text_emb】
+  - Mario's 的 business_id 在训练时没见过 → embedding 是 <NEW_BUSINESS> OOV (基本是 0)
+  - 仅靠 numeric features (rc=2, price=2) + categories_multi_hot (Italian, Bistro)
+  - 信号弱 → Mario's 大概率排到第 60-80 位 → 这一对 NDCG@10 = 0
+
+【v2 模型，加了 text_emb】
+  - business_id 仍是 OOV (一样)
+  - 多了 32 维 sentence-transformer 编码 "Mario's Tucson Bistro - Italian, Bistro" 的语义向量
+  - 这个向量跟训练里其他意大利餐厅的语义向量距离近
+  - 模型识别出"这家店和 Bob 历史喜欢的意大利风格类似" → 排到第 5-15 位 → NDCG@10 ≈ 0.4
+
+→ 把所有 1,471 cold-start ITEM 的对子求平均：
+   v1 在 cold-start ITEM 上 NDCG@10 ≈ 0.15（猜测）
+   v2 在 cold-start ITEM 上 NDCG@10 ≈ 0.25（猜测）
+   差距 +0.10 = ColBERT-light 的实际收益
+```
+
+#### 这就是为什么 7.4.5 v1 vs v2 是 ColBERT-light 价值的核心证据
+
+如果 v2 在 Q4 上比 v1 涨 ≥ +0.05 NDCG，**证明 sentence-transformer item encoder 真的救了 cold-start ITEM**——直接对应 PRD §3.3.7 假设 H6，是 Final Report 答辩的硬通货。如果差距 < 0.02，诚实写进 Limitations："ColBERT-light 在我们 9K item 规模下边际收益有限，工业级 100K+ item 才显著"。
+
 ### 7.1 Test Split 一次性评测（不可重复！）
 
 | 步骤 | 详细 |
