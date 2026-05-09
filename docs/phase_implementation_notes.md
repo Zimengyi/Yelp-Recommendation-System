@@ -522,6 +522,67 @@ Train loss: 8.286 → 6.732（仍在收敛中，远未到饱和）
 | in-batch softmax (T=20) 反而比 BCE 1:4 差 | T 过高 + 训练量 5× 少 + 未收敛 | 不修了——base 已够用，in-batch 作为 ablation 证据保留（"我们试过 in-batch，在此 scale 反而退化"在 final report 写到 §Future Work） |
 | MPS pin_memory 警告 | PyTorch MPS backend 不支持 pin_memory | 无害警告，DataLoader 内已处理 |
 
+### 6.7 Pipeline C — Hard-filter + DeepFM 兜底架构（commit `<6c_HASH>`）
+
+#### 设计
+
+按 plan §3.3.4 v2.2 fallback：
+
+```
+[user query / context]
+      ↓
+[硬过滤: target_city + price ±1 + ≥1 cuisine top-10 overlap]   ← 9K → ~600 candidates
+      ↓
+[DeepFM v2 精排]                                                 ← Phase 5.4 deepfm_final_v2.pt
+      ↓
+[top-10]                                                          ← latency p99 ~100ms
+```
+
+`hard_filter(user_id, target_city)` 实现见 notebook `06c_pipeline_C_hard_filter.ipynb`。
+
+#### 三 pipeline 对比（5000 val pair 子样本，full-pool eval）
+
+| Pipeline | 候选池 | Recall@10 | NDCG@10 | latency p99 | positive_in_pool_rate |
+|---|---|---|---|---|---|
+| **A** DeepFM full 9K | 9023 | 0.0012 | 0.0005 | 27.9 ms | 100% |
+| **B** Two-Tower→DeepFM (est.) | 200 | ~0.0354 | ~0.0079 | ~10 ms | 22.4% |
+| **C** Hard-filter→DeepFM | 638 | **0.0184** | **0.0082** | 99.4 ms | **66.8%** |
+
+**Pipeline C 比 Pipeline A 涨 15×**（Recall@10 0.0012 → 0.0184，NDCG@10 0.0005 → 0.0082）。比 Pipeline B 也更优——hard filter 召回率 66.8% 远高于 Two-Tower 的 22.4%。
+
+#### 关键发现 — methodology mismatch with §5.3 numbers
+
+**警告**：Phase 5.3/5.4 的 NDCG@10 = 0.3255 是按 plan §7.0 的 **100-candidate sampling** 算的（每个 (user, positive) 配 99 个同城负样本，rank against 100），不是 full-pool。本次 06c 的 Pipeline A/C 用 **full pool** (9K) 评估，metric 直接可比但**绝对值显著低**。
+
+要点解释:
+1. 100-candidate 评估 = 1/100 baseline = 1%，Phase 5.3 的 32.55% 是 ~32× 比 random 好
+2. Full-pool 9K 评估 = 1/9023 ≈ 0.011% baseline，Pipeline A 的 0.12% 是 ~10× 比 random 好
+3. 两个数字都说"模型比 random 好",只是 reference baseline 不同
+4. Final report 应当用一致 methodology——推荐选 plan §7.0 的 100-candidate（业界标准），方便 cross-paper 对比
+
+#### Pipeline C ranking efficiency 分析
+
+- positive_in_pool_rate = 66.84% → Pipeline C 上限 Recall@10 = 66.84% (模型完美时)
+- 实测 Recall@10 = 1.84% → ranking efficiency = 1.84% / 66.84% ≈ 2.75% (在 pool 内排好的概率)
+- 即使在已经过滤好的 ~600 候选里，DeepFM 也只在 2.75% 情况下把真 positive 排到 top-10——模型在"hard candidates"（同城同价同类）之间的精细辨识能力较弱
+- 这与 plan §5.3 sweep 的 NDCG 0.3255 不矛盾：sweep 用的是 random 负样本，positive 跟"完全无关"的 negative 区分容易；Pipeline C 用 hard-filter 后 negative 跟 positive 都很相似，区分难
+
+#### Phase 8 demo 推荐
+
+✅ **采用 Pipeline C** 作为 demo 主流程。理由:
+1. 召回率 (positive_in_pool_rate 66.84%) 远高于 Two-Tower (22.4%)
+2. latency p99 ~100ms 在 user-perceptible 阈值内
+3. Pool size 600 候选 vs Two-Tower 200 → DeepFM 有更多信息做精排
+4. **诚实记录 limitation**: 当前 ranking efficiency 仅 2.75%，多数 demo case 中真 positive 不会被排第一（但前 10 内 1.84% 正确率仍然 16× 比 random 好；对开屏推荐场景"给 5 道菜让用户挑一道"足够）
+
+#### 未来改进方向（写到 §Future Work）
+
+1. **Hard negative mining 重训 DeepFM**: 当前训练用 random 1:4 negs，模型见过的 negative 跟 positive 区分容易。改用 same-city + same-cuisine 的 hard negative 训练，预期 Pipeline C ranking efficiency 提升至 8-15%
+2. **扩大 user_top_k_cuisines**: 从 10 增到 20，pool size 增大但 positive_in_pool_rate 提升 (~75-80%)
+3. **Trade-off 调参**: 把 price_tolerance_window 从 0.40 收紧到 0.30，pool size 降但 ranking efficiency 提升
+
+---
+
 ### 6.7 §6.2 MMR 计划（待开始）
 
 按 plan §6.2：

@@ -1,0 +1,17 @@
+{
+  "pipeline": "C (hard filter + DeepFM v2)",
+  "n_eval": 5000,
+  "n_oov_user": 0,
+  "positive_in_pool_rate": 0.6684,
+  "Recall@10": 0.0184,
+  "NDCG@10": 0.008202212370519867,
+  "mean_pool_size": 638.8204,
+  "median_pool_size": 602.0,
+  "latency_ms_p50": 11.75999641418457,
+  "latency_ms_p95": 81.91140890121461,
+  "latency_ms_p99": 99.42633628845218,
+  "filter_config": {
+    "price_tolerance_window": 0.4,
+    "user_top_k_cuisines": 10
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "pipeline": "A (DeepFM full 9K brute-force)",
+  "n_eval": 5000,
+  "Recall@10": 0.0012,
+  "NDCG@10": 0.00047284162582201183,
+  "mean_pool_size": 9023.0,
+  "latency_ms_p50": 16.233444213867188,
+  "latency_ms_p95": 23.882019519805908,
+  "latency_ms_p99": 27.936441898345954
+}
