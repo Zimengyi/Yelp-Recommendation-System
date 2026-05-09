@@ -280,30 +280,72 @@ class FM(MF):
 
 ---
 
-## §5 Phase 5 — DeepFM 主训练（进行中 · commit `6354456` Stage 5.1 完成）
+## §5 Phase 5 — DeepFM 主训练（5.1/5.2/5.3 完成 · 5.4/5.5 待跑）
 
-### 5.1 当前状态（2026-05-07）
+### 5.1 当前状态（2026-05-08）
 
-✅ **Stage 5.1 sanity check** 完成：默认 config (emb_dim=8, dropout=0.2, l2=1e-4) 跑通  
-🟡 **Stage 5.2 emb_dim sweep** 后台运行中（task `brlmbswur`）  
-⏳ **Stage 5.3 dropout × L2 grid** 待跑  
-⏳ **Stage 5.4 final retrain on train+val** 待跑  
-⏳ **Stage 5.5 ablation: drop user_id emb** 待跑
+✅ **Stage 5.1 sanity check** ✅ commit `064cde7` (notebook `05a_deepfm_sanity.ipynb`)
+✅ **Stage 5.2 emb_dim sweep** ✅ commit `1bcce05` (notebook `05b_deepfm_emb_sweep.ipynb`，best emb_dim=32)
+✅ **Stage 5.3 dropout × L2 grid (v2)** ✅ commit `bc3a852` (notebook `05c_deepfm_dropout_l2_grid.ipynb` re-executed live via `nbconvert --execute --inplace` on M5 Tahoe 26.4.1，2026-05-08)
+⏳ **Stage 5.4 final retrain on train+val**：notebook `05d_deepfm_final_retrain.ipynb` scaffold ready
+⏳ **Stage 5.5 ablation no_user_id**：notebook `05e_deepfm_ablation.ipynb` scaffold ready
 
-### 5.2 Stage 5.1 跑数结果（emb_dim=8 · dropout=0.2 · l2=1e-4 · 10 epoch）
+### 5.2 产物清单
 
-| Metric | Best | Final | vs FM Δ |
+| 文件 | 说明 |
+|---|---|
+| `notebooks/05a_deepfm_sanity.ipynb` | Stage 5.1，arm64 native，default config，6/6 cells executed |
+| `notebooks/05b_deepfm_emb_sweep.ipynb` | Stage 5.2，emb_dim ∈ {4,8,16,32}，5/5 cells executed |
+| `notebooks/05c_deepfm_dropout_l2_grid.ipynb` | Stage 5.3 v2 (含 item_text_emb_pca32)，5×4=20 configs，**6/6 cells executed in-place via nbconvert**（114 KB w/ outputs） |
+| `models/deepfm_emb*_drop*_l2*.pt` | 5.2 emb sweep 各 dim 最佳 checkpoint（v1, gitignored） |
+| `models/deepfm_emb32_drop*_v2_history.json` | 5.3 v2 sweep 全 20 configs per-epoch 学习曲线 |
+| `models/deepfm_sweep_dropout_l2.json` | 5.3 总结：winner + sorted ranking + spread |
+
+### 5.3 跑数结果
+
+#### Stage 5.1（v1，emb_dim=8 · dropout=0.2 · L2=1e-4 · 10 epoch）
+
+| Metric | Best | vs FM Δ |
+|---|---|---|
+| Val AUC | 0.8339 | +0.004 |
+| Val NDCG@10 | 0.3201 | **+0.048** |
+| Val Recall@10 | 0.5398 | **+0.065** |
+
+DeepFM 在 NDCG@10 / Recall@10 上比 FM 显著提升（+4.8 / +6.5 点），AUC 接近持平。Top-K 排序质量是 deep + FM 二阶交叉的主要收益场景——AUC 是 pairwise 全局指标，FM 一阶已经接近天花板；NDCG/Recall 是 top-K 局部排序，需要更精细的特征交叉才能拉开。模型大小 13.6 MB（emb=8）。
+
+#### Stage 5.2（v1，emb_dim ∈ {4,8,16,32}，dropout=0.2, L2=1e-4 fix，10 epoch）
+
+| emb_dim | Val AUC | Val NDCG@10 | Val Recall@10 |
 |---|---|---|---|
-| Val AUC | **0.8330** (epoch 9) | 0.8329 | +0.003 |
-| Val NDCG@10 | **0.3182** (epoch 10) | 0.3182 | **+0.046** |
-| Val Recall@10 | **0.5397** (epoch 9) | 0.5387 | **+0.065** |
-| Train loss | 0.219 (epoch 10) | 持续下降 | — |
+| 4  | 0.8265 | 0.3019 | 0.5168 |
+| 8  | 0.8339 | 0.3201 | 0.5398 |
+| 16 | 0.8401 | 0.3219 | 0.5455 |
+| **32** ⭐ | **0.8436** | **0.3237** | **0.5483** |
 
-**结论**：DeepFM 在 NDCG@10 / Recall@10 上比 FM 显著提升（+4.6 / +6.5 点），AUC 接近持平（+0.3 点）。**Top-K 排序质量是 deep + FM 二阶交叉的主要收益场景**——AUC 是 pairwise 全局指标，FM 一阶已经接近天花板；NDCG/Recall 是 top-K 局部排序，需要更精细的特征交叉才能拉开。
+emb_dim=32 是 sweet spot——再涨到 64 会 OOM 风险（M5 16 GB 可用 ~10-12 GB），收益边际趋平。**emb=32 是 v2 (5.3 起) 的固定值**。
 
-模型大小：13.6 MB（emb_dim=8）。
+#### Stage 5.3（v2，emb=32 fix，加 item_text_emb_pca32，5×4 dropout × L2 grid，**完整 20 configs**）
 
-### 5.3 教学性原理
+**Val NDCG@10 heatmap**（fresh nbconvert run on M5，2026-05-08）：
+
+| drop \ L2 | 1e-05 | 1e-04 | 5e-04 | 1e-03 |
+|---|---|---|---|---|
+| 0.1 | 0.2981 | **0.3255** ⭐ | 0.3213 | 0.3026 |
+| 0.2 | 0.2934 | 0.3219 | 0.3184 | 0.3033 |
+| 0.3 | 0.2941 | 0.3203 | 0.3082 | 0.3009 |
+| 0.4 | 0.2982 | 0.3172 | 0.3078 | 0.2973 |
+| 0.5 | 0.2914 | 0.3100 | 0.2988 | 0.2937 |
+
+**Winner config**：dropout=0.1 / L2=1e-4 → val NDCG@10 **0.3255** · Recall@10 0.5510 · AUC 0.8418（peak epoch 10/10）。
+
+**Spread**：worst 0.2914 → best 0.3255 = **Δ 0.0341 NDCG**——sweep 是有意义的，配置间差距非平凡。
+
+**核心发现**：
+1. **L2=1e-4 在所有 dropout 下都 dominant**——单维 L2 调优比 dropout 调优更重要。L2 太小 (1e-5) 欠正则化（NDCG 普遍 < 0.30），太大 (1e-3) 过度正则化（NDCG ~0.30 但 Recall 退化）。
+2. **moderate dropout (0.1-0.3) 占优**，0.4/0.5 全行掉队——v2 输入加了 32d sentence-transformer 信号后特征空间更稠密，激进 dropout 损失太多信号。
+3. **v2 winner NDCG (0.3255) ≈ v1 winner NDCG (0.3237)**——这是 expected：text_emb 真正卖点在 cold-start ITEM 子集（Phase 7.4.5 v1 vs v2 ablation），val 集大部分是 active item 不显优势。
+
+### 5.4 教学性原理
 
 **DeepFM = FM 二阶 + DNN 共享 embedding**
 
@@ -315,25 +357,32 @@ embedding lookup ───┤                          ├──→ sum + sigmoi
                     └──→ DNN MLP[256,128,64] ──┘
 ```
 
-**FM 二阶项**用高效公式 `0.5 * [(Σx)² - Σx²]` 计算，复杂度从 O(n²) 降到 O(n)（n 个 field 各一个 d-dim emb）。本实现中 4 个 field：`user_emb`、`item_emb`、`user_num_proj`（数值 → 8d）、`item_num_proj`（数值 → 8d）。
+**FM 二阶项**用高效公式 `0.5 * [(Σx)² - Σx²]` 计算，复杂度从 O(n²) 降到 O(n)（n 个 field 各一个 d-dim emb）。v1 实现中 4 个 field（user_emb / item_emb / user_num_proj / item_num_proj），v2 加 item_text_proj 扩到 5 个 field。
 
 **为什么共享 embedding 比各跑各的好？**
 - 参数减半（15M → 7.5M 量级）
 - 梯度同时来自 FM head 和 DNN head → embedding 学到的表示既适合"两两交叉"又适合"高阶非线性"
 - FM 提供 short-cut（线性 + 二阶），DNN 提供 capacity（高阶组合），two-tower-on-shared-embedding 范式
 
-### 5.4 与计划偏差
+**v2 ColBERT-light item text emb 设计动机**：参考抖音电商笔记 §5.1 Doc 侧 sentence encoder + ColBERT 思路。Yelp 项目 query 侧的 sentence encoder 被 LLM agent (Sonnet) 替代（更强意图理解），doc 侧仍可用轻量 sentence-transformer。具体做法：`all-MiniLM-L6-v2` 编 `name + categories` → 384d → PCA 降到 32d → 同时进 DeepFM 精排（5 个 FM field 之一）和 Two-Tower 召回（item tower 输入）。**主要价值在 cold-start ITEM**：商家 `business_id` OOV 时（test 里 1,471 餐厅 train 没见过），传统 categorical embedding 退化为零向量，但 32d sentence-transformer 仍提供有效语义信号。Phase 7.4.5 v1 vs v2 ablation 是这个设计的核心证据。
 
-- 暂无（5.1 完全按 plan 跑通）。后续 5.2/5.3/5.4/5.5 跑完后追加偏差记录。
+### 5.5 与计划偏差
 
-### 5.5 踩坑日志
-
-| 问题 | 修复 |
+| 偏差 | 原因 |
 |---|---|
-| MPS 上 DeepFM 跑 emb_dim=64 偶发 OOM（M3 Pro 18GB） | 后续 sweep batch_size 从 4096 降到 2048 备用 |
-| （待补） | — |
+| 5/7 整套 Phase 1-5.2 重跑成 **notebook**（而非 script），原 commit `1cb2230 / f336e07 / 194f8e2 / 1a12f23 / 6354456 / 91b82cd / 848dfe0` 都是 script 版本 | ML2 (ADSP 31018) 要求每 phase 提交 `.ipynb`——professor 打开 notebook 看，不在 notebook 里的代码等于不存在。完整 inline 写在 notebook cell 比 `from src.X import Y` 合规。新 commit：`cf279e8` (P1) / `9710ff0` (P2) / `09cf6d7` (P3) / `3afce2f` (P4) / `064cde7` (P5.1) / `1bcce05` (P5.2 + P6) |
+| 加 v2 (`item_text_emb_pca32`)，commit `1b24180`，Phase 3/5/6 同时改造 | EDA Q11 + 抖音笔记给的设计灵感，ColBERT-light 在 cold-start ITEM 场景的鲁棒性需求 |
+| 5.3 grid **第一次 commit 时 notebook 0/6 executed** (commit reverted) | 之前用 standalone script 跑 sweep + scaffold notebook 一起 commit，违反 yelp-phase-complete skill "live-executed" 规则。已修复：5/8 用 `nbconvert --execute --inplace` 在新 M5 上重跑全 20 configs，notebook 6/6 cells executed in-place |
+| 5.1/5.2 没在 v2 上重跑 | v2 只动 item-side 输入；emb=32 最优结论对 user-side 不敏感；v1 数字保留作 baseline 参照 |
 
----
+### 5.6 踩坑日志
+
+| 问题 | 根因 | 修复 |
+|---|---|---|
+| anaconda3 装 PyTorch 后 MPS 报 True 但 GPU 闲 | `/opt/anaconda3` 是 x86_64 走 Rosetta，MPS shim 假阳 | 装 arm64 miniforge3，新 env `yelp-arm64`（5× 提速） |
+| 第一次 commit 5.3 时 notebook 0/6 executed (scaffold only) 但 JSONs 已生成 | dev 时跑了 standalone script + scaffold notebook 一起 commit | 用 `nbconvert --execute --inplace --ExecutePreprocessor.timeout=-1` 真在 notebook 里跑 + `caffeinate -i` 防睡眠；pre-commit verify gate 加到 yelp-phase-complete skill |
+| Tahoe 26.4.1 + nbconvert 跑了 ~1.5h on M5（M2 Pro 估计 5h） | M5 比 M2 Pro 大约 2-3× 提速 (per user_machine_specs) | 在新机上重跑 sweep，时间表大幅压缩 |
+| 5.3 v2 winner NDCG (0.3255) 与 v1 (0.3237) 看似 "没涨" | val 集大部分 active item，text_emb 真正卖点在 cold-start ITEM | Phase 7.4.5 (cold-start ITEM subset) v1 vs v2 ablation 才是关键证据 |
 
 ## §6 Phase 6 — Two-Tower + MMR (Stretch · 待开始)
 
