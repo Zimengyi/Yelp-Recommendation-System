@@ -440,16 +440,96 @@ embedding lookup ───┤                          ├──→ sum + sigmoi
 | Tahoe 26.4.1 + nbconvert 跑了 ~1.5h on M5（M2 Pro 估计 5h） | M5 比 M2 Pro 大约 2-3× 提速 (per user_machine_specs) | 在新机上重跑 sweep，时间表大幅压缩 |
 | 5.3 v2 winner NDCG (0.3255) 与 v1 (0.3237) 看似 "没涨" | val 集大部分 active item，text_emb 真正卖点在 cold-start ITEM | Phase 7.4.5 (cold-start ITEM subset) v1 vs v2 ablation 才是关键证据 |
 
-## §6 Phase 6 — Two-Tower + MMR (Stretch · 待开始)
+## §6 Phase 6 — Two-Tower 召回 (6.1 base + 6.1b in-batch softmax 完成 · 6.2 MMR 待开始 · stretch)
 
-> 🟡 占位章节，跑完后回填以下结构：
-> - 6.1 产物清单（faiss index / mmr config）
-> - 6.2 召回质量（Recall@100 / Latency p50/p99）
-> - 6.3 与计划偏差（Two-Tower 选了 in-batch negative 还是 sampled softmax？）
-> - 6.4 教学性原理（DSSM 双塔 vs DeepFM 单塔的检索-精排分工 / MMR `λ * relevance - (1-λ) * max_sim` 公式释义）
-> - 6.5 踩坑日志
+### 6.1 当前状态（2026-05-08）
 
----
+✅ **6.1 base Two-Tower (BCE on 1:4 negatives)** ✅ commit `1bcce05` (notebook `06_two_tower.ipynb`，8/8 cells executed)
+✅ **6.1b in-batch softmax variant** ✅ commit `<6_HASH>` (notebook `06b_two_tower_inbatch_softmax.ipynb`，6/6 cells executed live on M5)
+⏳ **6.2 MMR 重排（stretch）**：no scaffold yet，defer 到 Phase 7 评测后看时间
+
+### 6.2 产物清单
+
+| 文件 | 说明 |
+|---|---|
+| `notebooks/06_two_tower.ipynb` | Phase 6.1 base，BCE 1:4 negatives，PyTorch DSSM |
+| `notebooks/06b_two_tower_inbatch_softmax.ipynb` | Phase 6.1b 实验：in-batch softmax 变体 |
+| `models/two_tower.pt` (11 MB, gitignored) | base v2 checkpoint (含 item_text_emb_pca32) |
+| `models/two_tower_item_index.npy` (1.1 MB) | 9023×32 base item embedding matrix（pre-computed for retrieval） |
+| `models/two_tower_metrics.json` | base config + history + recall |
+| `models/two_tower_v3_inbatch.pt` (11 MB, gitignored) | in-batch softmax variant checkpoint |
+| `models/two_tower_v3_item_index.npy` | in-batch item embeddings |
+| `models/two_tower_v3_metrics.json` | in-batch variant metrics |
+
+### 6.3 跑数结果
+
+#### Stage 6.1 base (BCE 1:4 negatives, T=10, L2=1e-5, 10 epoch)
+
+Train loss: 0.3364 → 0.2373 (smooth, monotone)
+
+| K | Recall@K (val, 60,482 positives) |
+|---|---|
+| 10 | 0.0354 |
+| 50 | 0.0975 |
+| 100 | 0.1490 |
+| 200 | 0.2244 |
+| 500 | 0.3857 |
+
+**Latency** (100 trials, M5 MPS): median 0.68 ms / p95 1.02 ms / p99 6.02 ms ✅（plan 验收 < 10 ms 完成）
+
+#### Stage 6.1b in-batch softmax (T=20, lr=1e-3, L2=1e-5, 10 epoch on positives-only train)
+
+Train loss: 8.286 → 6.732（仍在收敛中，远未到饱和）
+
+| K | base (BCE 1:4) | in-batch softmax | Δ |
+|---|---|---|---|
+| 10 | 0.0354 | 0.0128 | **-0.0226** |
+| 50 | 0.0975 | 0.0561 | -0.0414 |
+| 100 | 0.1490 | 0.1000 | -0.0489 |
+| 200 | 0.2244 | 0.1658 | **-0.0586** |
+| 500 | 0.3857 | 0.2981 | -0.0876 |
+
+**反直觉发现：in-batch softmax 在所有 K 上都比 base 差**。原本预期 in-batch softmax 是 retrieval 标准训练目标应该更优，实际反向。
+
+### 6.4 教学性原理 + 异常分析
+
+**Two-Tower 整体 Recall 远低于 plan 预期**（plan §6.1.5 期望 Recall@200 ≥ 0.90，base 实际 0.22，in-batch 0.17）。诚实分析原因：
+
+1. **Val positives 分布稀疏**：60,482 val positives 分散在 9023 个 item 上，许多 user 只有 1 个 val positive。Recall@K 测的是"给一个 user 的 query embedding，topK 候选里能不能命中该 user 的 next visit"，在如此稀疏的真值下天花板天然低
+2. **没有 hard negative mining**：base 用 random 1:4 negatives，in-batch 用 batch 内其他 sample。两种 negative 都太"软"——很多 negative 跟 user 完全无关，模型轻易区分但学不到精细排序信号
+3. **sentence-transformer item text emb (32d PCA from 384d) 信息密度低**：v2 引入的 ColBERT-light 在精排（DeepFM）受益（cold-start ITEM），但召回阶段单独用 32d 对 9K 餐厅做 embedding lookup 信息量不足
+4. **In-batch softmax 比 BCE 更差的原因**：
+   - **训练数据少 5×**：in-batch 用 415K positives-only（无 explicit negatives），base 用 2.07M positives+negatives。in-batch 每 epoch 见的 sample 少
+   - **Temperature 太高 (T=20)**：T=20 让 softmax 过于尖锐，梯度集中在少数 sample 上，hard negative 反而在 batch 内被忽略
+   - **Loss 8.3→6.7 仍未收敛**：参考值 ln(batch_size=8192) ≈ 9.01，loss 在 7 附近还远没把 batch 内 negative 排开
+   - **Production 启示**：in-batch softmax 在 large-batch (4096+) + hard-negative-mining 才发挥优势；在我们当前 setup 下 BCE 1:4 反而是更好选择
+
+5. **架构定位回到 v2.2 双路召回（plan §3.3.4 v2.2）**：S1 push 路如果 Two-Tower Recall 太低，降级"地理+时间硬过滤"DeepFM 直精排（latency 100-300ms 仍可演示）。S2/S6 CRS 路（LLM intent + hard filter）不依赖 Two-Tower，主流程 demo 不受影响。Phase 8 Streamlit demo 用 CRS 路保底。
+
+### 6.5 与计划偏差
+
+| 偏差 | 原因 |
+|---|---|
+| Recall@200 ≈ 22% (base) / 17% (in-batch)，远低于 plan 预期 ≥ 90% | (a) val positives 稀疏 (b) 无 hard negative mining (c) 32d item embedding 信息量不足 (d) ML2 项目 9K item scale 上 two-tower 边际收益本就有限 |
+| in-batch softmax 比 base BCE 差 (反直觉) | T=20 太高 + 训练数据 5× 少 + 未到收敛 + 缺 hard negative mining |
+| 6.2 MMR 没写 notebook | stretch 优先级，等 Phase 7 评测看是否需要 demo F2 trip 多样性 |
+
+### 6.6 踩坑日志
+
+| 问题 | 根因 | 应对 |
+|---|---|---|
+| Two-Tower Recall 远低于 plan 90% 预期 | 数据稀疏 + 缺 hard neg + 9K scale 边际有限 | Phase 7 评测降级为"DeepFM 直接精排 9K 候选"，跳过 retrieval 阶段；plan §11 R4 fallback 已预案 |
+| in-batch softmax (T=20) 反而比 BCE 1:4 差 | T 过高 + 训练量 5× 少 + 未收敛 | 不修了——base 已够用，in-batch 作为 ablation 证据保留（"我们试过 in-batch，在此 scale 反而退化"在 final report 写到 §Future Work） |
+| MPS pin_memory 警告 | PyTorch MPS backend 不支持 pin_memory | 无害警告，DataLoader 内已处理 |
+
+### 6.7 §6.2 MMR 计划（待开始）
+
+按 plan §6.2：
+- λ ∈ {0.5, 0.6, 0.7, 0.8} 扫，目标 per-period top-3 cuisine diversity ≥ 0.66
+- sim() = cuisine + price + region multi-hot cosine
+- ablation：MMR vs score-greedy，期望 diversity +0.20 / NDCG@3 -<0.005
+
+需要新写 `notebooks/07_mmr_rerank.ipynb`（plan 编号 6.2，但放在 Phase 7 评测产物里更合理）。Defer 到 Phase 7 之后看时间。
 
 ## §7 Phase 7 — Test 一次性评测（5/19 计划）
 
