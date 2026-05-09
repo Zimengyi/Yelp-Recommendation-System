@@ -280,7 +280,7 @@ class FM(MF):
 
 ---
 
-## §5 Phase 5 — DeepFM 主训练（5.1/5.2/5.3/5.4 完成 · 5.5 待跑）
+## §5 Phase 5 — DeepFM 主训练（5.1/5.2/5.3/5.4/5.5 全部完成 ✅）
 
 ### 5.1 当前状态（2026-05-08）
 
@@ -288,7 +288,7 @@ class FM(MF):
 ✅ **Stage 5.2 emb_dim sweep** ✅ commit `1bcce05` (notebook `05b_deepfm_emb_sweep.ipynb`，best emb_dim=32)
 ✅ **Stage 5.3 dropout × L2 grid (v2)** ✅ commit `bc3a852` (notebook `05c_deepfm_dropout_l2_grid.ipynb` re-executed live via `nbconvert --execute --inplace` on M5 Tahoe 26.4.1，2026-05-08)
 ✅ **Stage 5.4 final retrain on train+val** ✅ commit `df0dca9` (notebook `05d_deepfm_final_retrain.ipynb` re-executed live on M5 Tahoe，10 epoch on 2.38M-sample train+val merged，loss 0.6312→0.2573，final model `deepfm_final_v2.pt` 49 MB stored for Phase 7)
-⏳ **Stage 5.5 ablation no_user_id**：notebook `05e_deepfm_ablation.ipynb` scaffold ready
+✅ **Stage 5.5 ablation no_user_id** ✅ commit `92114c9` (notebook `05e_deepfm_ablation.ipynb` re-executed live on M5; H6 strong-pass: Δ NDCG@10 +0.0001, Δ AUC -0.0023, Δ Recall@10 -0.0004 — all under 0.005 threshold)
 
 ### 5.2 产物清单
 
@@ -369,6 +369,36 @@ emb_dim=32 是 sweet spot——再涨到 64 会 OOM 风险（M5 16 GB 可用 ~10
 - `models/deepfm_final_v2_meta.json` (config + per-epoch history)
 
 **Phase 7 评测预期**：在 locked test split 上 NDCG@10 应该 ≈ 0.32-0.33（5.3 val winner 0.3255 减去 train-test gap，外加 5.4 多用 val 数据后的 stability bonus）。Cold-start ITEM subset 上 v2 应显著高于 v1（H6 验证）。
+
+#### Stage 5.5（v2 ablation: drop user_id embedding，验证 H6）
+
+**Protocol**：用 5.4 final config (drop=0.1, L2=1e-4, emb=32) 在 train 集上重训，但 `user_id` embedding 强制为零向量 (`ablate_user_id=True`)。在 val 上对比"with user_id" vs "no user_id"，验证假设 **H6**：user_id embedding 在 cold-start 情况下（OOV 用户）退化为零，那对 active 用户来说它到底贡献多少 signal？
+
+**结果**（val 集 epoch 10 best）：
+
+| metric | with user_id | no user_id | Δ |
+|---|---|---|---|
+| AUC | 0.8502 | 0.8479 | **-0.0023** |
+| NDCG@10 | 0.3255 | 0.3256 | **+0.0001** ⭐ |
+| Recall@10 | 0.5510 | 0.5506 | **-0.0004** |
+
+**Per-epoch trajectory（no user_id）**：
+- ep1: AUC 0.7903 / NDCG 0.2574 / Recall 0.4536
+- ep5: AUC 0.8445 / NDCG 0.3173 / Recall 0.5380
+- ep10: AUC 0.8447 / NDCG 0.3226 / Recall 0.5466
+- best (ep9): AUC 0.8479 / NDCG 0.3256 / Recall 0.5506
+
+**结论 — H6 ✅ 强通过**（验收标准：Δ < 0.01 强通过，< 0.03 弱通过；实测全部 Δ < 0.005）：
+
+1. **user_id embedding 几乎没贡献**——去掉它 NDCG@10 反而**轻微上涨**（噪声以内但方向是正的），说明 user_id emb 在这个数据规模上未学到有效协同过滤信号
+2. **模型主要依赖 user_num + cuisine_emb + 数值特征**（avg_rating_given / review_count_log / days_active / fav_cuisine 等），用户身份的 categorical signal 是 redundant 的
+3. **Phase 7 cold-start 用户子集** (rc<5, 119K 用户从未在 train 出现) 上，no-user-id 模型应该跟 with-user-id 几乎相等——因为 with-user-id 模型对这些用户也是 OOV 零向量
+4. **Production 含义**：可以用 `ablate_user_id=True` 的模型作为 cold-start fallback，省掉 user_id embedding table（约 359K × 32 = ~46 MB float32），模型 size 从 49MB → ~3MB，部署成本大降；同时不损失精度
+
+**Artifacts**：
+- `models/deepfm_ablate_no_user_id.pt` (49 MB, gitignored per `*.pt`)
+- `models/deepfm_ablate_no_user_id_history.json` (per-epoch metrics, tracked)
+
 
 
 ### 5.4 教学性原理
