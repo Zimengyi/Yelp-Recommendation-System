@@ -522,7 +522,7 @@ Train loss: 8.286 → 6.732（仍在收敛中，远未到饱和）
 | in-batch softmax (T=20) 反而比 BCE 1:4 差 | T 过高 + 训练量 5× 少 + 未收敛 | 不修了——base 已够用，in-batch 作为 ablation 证据保留（"我们试过 in-batch，在此 scale 反而退化"在 final report 写到 §Future Work） |
 | MPS pin_memory 警告 | PyTorch MPS backend 不支持 pin_memory | 无害警告，DataLoader 内已处理 |
 
-### 6.7 Pipeline C — Hard-filter + DeepFM 兜底架构（commit `<6c_HASH>`）
+### 6.7 Pipeline C — Hard-filter + DeepFM 兜底架构（commit `9e25e34`）
 
 #### 设计
 
