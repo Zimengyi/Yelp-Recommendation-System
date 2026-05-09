@@ -280,14 +280,14 @@ class FM(MF):
 
 ---
 
-## §5 Phase 5 — DeepFM 主训练（5.1/5.2/5.3 完成 · 5.4/5.5 待跑）
+## §5 Phase 5 — DeepFM 主训练（5.1/5.2/5.3/5.4 完成 · 5.5 待跑）
 
 ### 5.1 当前状态（2026-05-08）
 
 ✅ **Stage 5.1 sanity check** ✅ commit `064cde7` (notebook `05a_deepfm_sanity.ipynb`)
 ✅ **Stage 5.2 emb_dim sweep** ✅ commit `1bcce05` (notebook `05b_deepfm_emb_sweep.ipynb`，best emb_dim=32)
 ✅ **Stage 5.3 dropout × L2 grid (v2)** ✅ commit `bc3a852` (notebook `05c_deepfm_dropout_l2_grid.ipynb` re-executed live via `nbconvert --execute --inplace` on M5 Tahoe 26.4.1，2026-05-08)
-⏳ **Stage 5.4 final retrain on train+val**：notebook `05d_deepfm_final_retrain.ipynb` scaffold ready
+✅ **Stage 5.4 final retrain on train+val** ✅ commit `df0dca9` (notebook `05d_deepfm_final_retrain.ipynb` re-executed live on M5 Tahoe，10 epoch on 2.38M-sample train+val merged，loss 0.6312→0.2573，final model `deepfm_final_v2.pt` 49 MB stored for Phase 7)
 ⏳ **Stage 5.5 ablation no_user_id**：notebook `05e_deepfm_ablation.ipynb` scaffold ready
 
 ### 5.2 产物清单
@@ -344,6 +344,32 @@ emb_dim=32 是 sweet spot——再涨到 64 会 OOM 风险（M5 16 GB 可用 ~10
 1. **L2=1e-4 在所有 dropout 下都 dominant**——单维 L2 调优比 dropout 调优更重要。L2 太小 (1e-5) 欠正则化（NDCG 普遍 < 0.30），太大 (1e-3) 过度正则化（NDCG ~0.30 但 Recall 退化）。
 2. **moderate dropout (0.1-0.3) 占优**，0.4/0.5 全行掉队——v2 输入加了 32d sentence-transformer 信号后特征空间更稠密，激进 dropout 损失太多信号。
 3. **v2 winner NDCG (0.3255) ≈ v1 winner NDCG (0.3237)**——这是 expected：text_emb 真正卖点在 cold-start ITEM 子集（Phase 7.4.5 v1 vs v2 ablation），val 集大部分是 active item 不显优势。
+
+#### Stage 5.4（v2 final retrain on train+val merged）
+
+**Protocol**：用 5.3 winner config (drop=0.1, L2=1e-4, emb=32) 在 **train + val 合并集**（**2,377,695 samples**）上重训，固定 10 epoch（5.3 winner peak epoch）。Train+val 合并 = 不再留 holdout，用更多数据炼一个更稳的最终模型，给 Phase 7 test 评测用。
+
+| epoch | train_loss | wallclock |
+|---|---|---|
+| 1 | 0.6312 | 31s |
+| 2 | 0.3263 | 29s |
+| 3 | 0.3109 | 30s |
+| 4 | 0.2982 | 30s |
+| 5 | 0.2879 | 30s |
+| 6 | 0.2808 | 30s |
+| 7 | 0.2745 | 30s |
+| 8 | 0.2689 | 30s |
+| 9 | 0.2629 | 30s |
+| 10 | 0.2573 | 30s |
+
+总训练时间 ~5 min on M5（vs ~15 min predict on M2 Pro）。loss 单调下降无 plateau，10 epoch 还在收敛中——但 5.3 sweep 在 val 上确认 epoch 10 是 generalization peak（再训会 overfit val），所以 stop 在 10。
+
+**Artifacts**：
+- `models/deepfm_final_v2.pt` (49 MB, gitignored per `*.pt`) — Phase 7 评测用
+- `models/deepfm_final_v2_meta.json` (config + per-epoch history)
+
+**Phase 7 评测预期**：在 locked test split 上 NDCG@10 应该 ≈ 0.32-0.33（5.3 val winner 0.3255 减去 train-test gap，外加 5.4 多用 val 数据后的 stability bonus）。Cold-start ITEM subset 上 v2 应显著高于 v1（H6 验证）。
+
 
 ### 5.4 教学性原理
 
