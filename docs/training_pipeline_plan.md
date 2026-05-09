@@ -61,7 +61,7 @@ canvas/ml2/project/
 | **2. EDA** ✅                                | 5/6 – 5/11（与 1 并行） | 9 张图 + cuisine_vocab.json（已完成 5/6 commit f336e07） | Zimeng + Cindy         | 6d   |
 | **3. 特征工程** ✅                              | 5/9 – 5/11         | 26 features + 234-dim 输入 + 2.07M 训练样本 (1:4 负采样)（已完成 5/6 commit 194f8e2） | Haobo                  | 3d   |
 | **4. Baseline 模型** ✅                       | 5/12 – 5/13        | MF (AUC 0.785) + FM (AUC 0.830)（已完成 5/7 commit 1a12f23） | Haobo                  | 2d   |
-| **5. DeepFM 主训练 + sweep** 🟡               | 5/14 – 5/16        | 5.1 ✅ notebook commit `064cde7` (emb=8 NDCG 0.320)；5.2 ✅ notebook commit `1bcce05` (best emb=32 NDCG 0.324)；5.3 ✅ v2 grid 20/20 commit `420b7d0` (best drop=0.1/L2=1e-4 NDCG **0.326** Recall **0.551**)；5.4 ✅ commit `a6abcb1` (final retrain train+val 2.38M)；5.5 待跑 | Haobo                  | 3d   |
+| **5. DeepFM 主训练 + sweep** ✅               | 5/14 – 5/16        | 5.1 ✅ notebook commit `064cde7` (emb=8 NDCG 0.320)；5.2 ✅ notebook commit `1bcce05` (best emb=32 NDCG 0.324)；5.3 ✅ commit `420b7d0` (NDCG 0.326 winner)；5.4 ✅ commit `df0dca9` (final retrain train+val 2.38M)；5.5 ✅ commit `0f46472` (H6 ablation: Δ NDCG +0.0001 — user_id redundant) | Haobo                  | 3d   |
 | **6. Two-Tower (S1 加速) + MMR (F2)**（stretch）⏳ | 5/17 – 5/18        | DSSM 召回（仅 S1 路）+ MMR 重排（F2 trip）            | Haobo                  | 2d   |
 | **7. 评测** ⏳                                 | 5/19               | Test split 一次性 metric + 4 个 trip metric     | Haobo                  | 1d   |
 | **8. Agent 集成 + Demo** ⏳                    | 5/20 – 5/21        | Streamlit demo 端到端跑通                        | Haobo + All（Likert 打分） | 2d   |
@@ -351,8 +351,8 @@ Context features 不预计算成静态表，而是写成函数 `build_context(re
 > - 5.1 Sanity ✅ notebook commit `064cde7` (arm64, emb=8 → AUC 0.8339 / NDCG 0.3201 / Recall 0.5398)
 > - 5.2 emb_dim sweep ✅ notebook commit `1bcce05` (arm64, best emb_dim=**32**: AUC 0.8436 / NDCG 0.3237 / Recall 0.5483)
 > - 5.3 dropout × L2 grid (v2) ✅ notebook `05c_deepfm_dropout_l2_grid.ipynb` re-executed live in commit `420b7d0` via `nbconvert --execute --inplace` on M5 Tahoe 26.4.1 (~1.5h, full 20/20 configs). **Winner**: drop=0.1 / L2=1e-4 → NDCG@10 **0.3255** / Recall@10 **0.5510** / AUC 0.8418 (peak epoch 10/10). Spread Δ NDCG = 0.0341 across 20 configs. L2=1e-4 dominant across all dropouts; moderate dropout (0.1-0.3) wins.
-> - 5.4 final retrain on train+val ✅ commit `a6abcb1` (notebook `05d_deepfm_final_retrain.ipynb` executed live on M5，10 epoch on train+val merged 2.38M samples，loss 0.6312→0.2573，final model `deepfm_final_v2.pt` 49 MB stored for Phase 7)
-> - 5.5 ablation no_user_id ⏳ (notebook `05e_deepfm_ablation.ipynb` scaffold ready)
+> - 5.4 final retrain on train+val ✅ commit `df0dca9` (notebook `05d_deepfm_final_retrain.ipynb` executed live on M5，10 epoch on train+val merged 2.38M samples，loss 0.6312→0.2573，final model `deepfm_final_v2.pt` 49 MB stored for Phase 7)
+> - 5.5 ablation no_user_id ✅ commit `0f46472` (notebook `05e_deepfm_ablation.ipynb` re-executed live; H6 strong-pass: Δ NDCG@10 +0.0001, Δ AUC -0.0023, Δ Recall@10 -0.0004 — user_id embedding redundant given user_num + cuisine_emb features)
 >
 > **v2 改动（2026-05-07）**：从 5.3 起 DeepFM 输入新增 `item_text_emb_pca32` (32d sentence-transformer/PCA)，FM 二阶项扩到 5 个 field（user_emb / item_emb / user_num_proj / item_num_proj / item_text_proj），DNN 输入也带上。Cold-start item subset 评测时这个 feature 是主要鲁棒性来源。
 >
