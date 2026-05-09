@@ -62,7 +62,7 @@ canvas/ml2/project/
 | **3. 特征工程** ✅                              | 5/9 – 5/11         | 26 features + 234-dim 输入 + 2.07M 训练样本 (1:4 负采样)（已完成 5/6 commit 194f8e2） | Haobo                  | 3d   |
 | **4. Baseline 模型** ✅                       | 5/12 – 5/13        | MF (AUC 0.785) + FM (AUC 0.830)（已完成 5/7 commit 1a12f23） | Haobo                  | 2d   |
 | **5. DeepFM 主训练 + sweep** ✅               | 5/14 – 5/16        | 5.1 ✅ notebook commit `064cde7` (emb=8 NDCG 0.320)；5.2 ✅ notebook commit `1bcce05` (best emb=32 NDCG 0.324)；5.3 ✅ commit `420b7d0` (NDCG 0.326 winner)；5.4 ✅ commit `df0dca9` (final retrain train+val 2.38M)；5.5 ✅ commit `0f46472` (H6 ablation: Δ NDCG +0.0001 — user_id redundant) | Haobo                  | 3d   |
-| **6. Two-Tower (S1 加速) + MMR (F2)**（stretch）🟡 | 5/17 – 5/18        | 6.1 base ✅ commit `1bcce05` (Recall@200 0.224, latency p99 6ms)；6.1b in-batch softmax ✅ commit `<6_HASH>` (反直觉 worse: Recall@200 0.166)；6.2 MMR 待开始 (defer 到 P7 之后) | Haobo                  | 2d   |
+| **6. Two-Tower (S1 加速) + MMR (F2)**（stretch）🟡 | 5/17 – 5/18        | 6.1 base ✅ commit `1bcce05` (Recall@200 0.224, latency p99 6ms)；6.1b in-batch softmax ✅ commit `49a9939` (反直觉 worse: Recall@200 0.166)；6.2 MMR 待开始 (defer 到 P7 之后) | Haobo                  | 2d   |
 | **7. 评测** ⏳                                 | 5/19               | Test split 一次性 metric + 4 个 trip metric     | Haobo                  | 1d   |
 | **8. Agent 集成 + Demo** ⏳                    | 5/20 – 5/21        | Streamlit demo 端到端跑通                        | Haobo + All（Likert 打分） | 2d   |
 | **9. Writeup + Rubric 自检** ⏳                | 5/22               | final_report.md + 提交所需 PDF/notebook         | Haobo                  | 1d   |

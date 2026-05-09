@@ -445,7 +445,7 @@ embedding lookup ───┤                          ├──→ sum + sigmoi
 ### 6.1 当前状态（2026-05-08）
 
 ✅ **6.1 base Two-Tower (BCE on 1:4 negatives)** ✅ commit `1bcce05` (notebook `06_two_tower.ipynb`，8/8 cells executed)
-✅ **6.1b in-batch softmax variant** ✅ commit `<6_HASH>` (notebook `06b_two_tower_inbatch_softmax.ipynb`，6/6 cells executed live on M5)
+✅ **6.1b in-batch softmax variant** ✅ commit `49a9939` (notebook `06b_two_tower_inbatch_softmax.ipynb`，6/6 cells executed live on M5)
 ⏳ **6.2 MMR 重排（stretch）**：no scaffold yet，defer 到 Phase 7 评测后看时间
 
 ### 6.2 产物清单
