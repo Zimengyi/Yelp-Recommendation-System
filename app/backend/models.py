@@ -54,7 +54,7 @@ class RecommendResponse(BaseModel):
 class TripPlanRequest(BaseModel):
     user_id: str
     query: Optional[str] = None
-    destination_city: str = "Philadelphia"
+    destination_city: str = "Los Angeles"
     days: int = Field(default=3, ge=1, le=5)
     candidates_per_period: int = Field(default=3, ge=1, le=5)
 

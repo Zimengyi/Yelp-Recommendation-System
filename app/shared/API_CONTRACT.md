@@ -152,7 +152,7 @@ Generates the F2 Trip Plan payload: `days × periods × 3 candidates`.
 {
   "user_id": "<NEW_USER>",
   "query": "cheap Philadelphia trip",
-  "destination_city": "Philadelphia",
+  "destination_city": "Los Angeles",
   "days": 3,
   "candidates_per_period": 3
 }
@@ -162,7 +162,7 @@ Generates the F2 Trip Plan payload: `days × periods × 3 candidates`.
 |---|---|---|---|
 | `user_id` | str | yes | Same user id semantics as `/api/recommend` |
 | `query` | str \| null | no | Trip-level user constraints, e.g. budget/dietary/cuisine |
-| `destination_city` | str | no | Demo supports Philadelphia/Tampa/Tucson templates |
+| `destination_city` | str | no | Demo supports Los Angeles/Philadelphia/Tampa/Tucson templates. If Trip mode cannot infer a destination from the query and no browser geolocation is already available, the frontend defaults to LA. |
 | `days` | int | no | 1–5 |
 | `candidates_per_period` | int | no | 1–5, demo uses 3 |
 
@@ -171,7 +171,7 @@ Generates the F2 Trip Plan payload: `days × periods × 3 candidates`.
 ```json
 {
   "user_id": "<NEW_USER>",
-  "destination_city": "Philadelphia",
+  "destination_city": "Los Angeles",
   "days": [
     {
       "day_index": 1,

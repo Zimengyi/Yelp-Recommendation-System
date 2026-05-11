@@ -167,8 +167,21 @@
         ["晚上","回到 Downtown，看夜景后吃一顿收尾晚餐。",[["Bavel",4.7,2500,"Middle Eastern","$$$","High-energy final dinner downtown.","收尾仪式感"],["Bestia",4.6,4300,"Italian","$$$$","Celebratory dinner with strong reviews.","高分热门"],["Water Grill",4.5,2100,"Seafood","$$$","Seafood dinner near downtown hotels.","路线好收"]]]
       ],
     ];
-    let expanded = false, detailIndex = 0, day = 0, slotIdx = {}, lastQuery = '', inputMode = 'normal';
+    let expanded = false, detailIndex = 0, slotIdx = {}, lastQuery = '', inputMode = 'normal';
+    let day = 0, tripDestinationCity = 'Los Angeles';
     const $ = s => document.querySelector(s);
+    const DESTINATION_ALIASES = [
+      {city:'Los Angeles', patterns:[/\bla\b/i, /\bl\.a\.\b/i, /los angeles/i, /洛杉矶/]},
+      {city:'Philadelphia', patterns:[/philadelphia/i, /\bphilly\b/i, /费城/]},
+      {city:'Tampa', patterns:[/tampa/i]},
+      {city:'Tucson', patterns:[/tucson/i]}
+    ];
+    const GEO_CITY_CENTERS = [
+      {city:'Los Angeles', lat:34.0522, lon:-118.2437},
+      {city:'Philadelphia', lat:39.9526, lon:-75.1652},
+      {city:'Tampa', lat:27.9506, lon:-82.4572},
+      {city:'Tucson', lat:32.2226, lon:-110.9747}
+    ];
     const icon = {
       copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
       up:'<svg viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 18.4 22H7"/><path d="M7 10 12 2a3 3 0 0 1 3 3.9"/></svg>',
@@ -210,20 +223,54 @@
       cards = data.recommendations.map(normalizeCard);
       return data;
     }
-    async function fetchTripPlan(query='Plan my Philadelphia trip') {
+    function extractDestinationCity(query='') {
+      const text = String(query);
+      const match = DESTINATION_ALIASES.find(item => item.patterns.some(pattern => pattern.test(text)));
+      return match ? match.city : null;
+    }
+    function nearestSupportedCity(lat, lon) {
+      const miles = GEO_CITY_CENTERS.map(place => ({
+        city: place.city,
+        dist: Math.hypot((lat - place.lat) * 69, (lon - place.lon) * 54)
+      }));
+      return miles.sort((a,b) => a.dist - b.dist)[0]?.city || 'Los Angeles';
+    }
+    function currentLocationCity() {
+      if (!navigator.geolocation || !navigator.permissions) return Promise.resolve(null);
+      return navigator.permissions.query({name:'geolocation'}).then(status => {
+        if (status.state !== 'granted') return null;
+        return new Promise(resolve => {
+          navigator.geolocation.getCurrentPosition(
+            pos => resolve(nearestSupportedCity(pos.coords.latitude, pos.coords.longitude)),
+            () => resolve(null),
+            {maximumAge:600000, timeout:1200}
+          );
+        });
+      }).catch(() => null);
+    }
+    async function resolveTripContext(query='') {
+      const typedCity = extractDestinationCity(query);
+      const geoCity = typedCity ? null : await currentLocationCity();
+      const destinationCity = typedCity || geoCity || 'Los Angeles';
+      const resolvedQuery = typedCity || geoCity ? query : `${query || 'plan my trip'} in LA`;
+      return {destinationCity, query: resolvedQuery};
+    }
+    async function fetchTripPlan(query='Plan my LA trip') {
+      const tripContext = await resolveTripContext(query);
       const res = await fetch(`${BACKEND_URL}/api/trip/plan`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           user_id: DEMO_USER_ID,
-          query,
-          destination_city: 'Philadelphia',
+          query: tripContext.query,
+          destination_city: tripContext.destinationCity,
           days: 3,
           candidates_per_period: 3
         })
       });
       if (!res.ok) throw new Error(`Backend ${res.status}`);
       const data = await res.json();
+      tripDestinationCity = data.destination_city || tripContext.destinationCity;
       tripData = data.days.map(dayPlan => dayPlan.periods.map(period => [
         period.label,
         period.activity,
@@ -291,7 +338,7 @@
       <div class="attrib">Yelp Open Dataset · #b1u2 · 2026</div></div>
       <div class="bottom-nav"><button class="nav-circle" ${detailIndex===0?'disabled':''} onclick="moveDetail(-1)">‹</button><div class="counter">${detailIndex+1} of ${total}</div><button class="nav-circle" ${detailIndex===total-1?'disabled':''} onclick="moveDetail(1)">›</button></div>`;
     }
-    async function showTrip(query='Plan my Philadelphia trip'){
+    async function showTrip(query='Plan my LA trip'){
       inputMode = 'trip';
       updateInputMode();
       $('#home').classList.add('hidden');
@@ -315,7 +362,7 @@
       <div class="dots">${[0,1,2].map(i=>`<span class="dot ${i===idx?'active':''}"></span>`).join('')}</div>`;
     }
     function renderTrip(){
-      $('#trip').innerHTML = `<div class="trip-head"><div><h1>Philadelphia · 3 days · 9 meals</h1><p class="sub">S6 Trip Plan · Pipeline C per slot · MMR top-3 candidate diversity</p></div><button class="export">⇩ 导出</button></div>
+      $('#trip').innerHTML = `<div class="trip-head"><div><h1>${esc(tripDestinationCity)} · 3 days · 9 meals</h1><p class="sub">S6 Trip Plan · Pipeline C per slot · MMR top-3 candidate diversity</p></div><button class="export">⇩ 导出</button></div>
       <div class="tabs">${[0,1,2].map(i=>`<button class="tab ${i===day?'active':''}" onclick="day=${i};renderTrip()">DAY ${i+1}</button>`).join('')}</div>
       ${tripData[day].map((p,i)=>`<section class="period"><h2>${p[0]}</h2><p class="activity">${p[1]}</p>${slotCard(p,i)}</section>`).join('')}`;
     }
@@ -346,7 +393,7 @@
     const initialQuery = params.get('q') || '';
     const initialTrip = params.get('trip') === '1';
     if (initialTrip) {
-      showTrip(initialQuery || 'Plan my Philadelphia trip');
+      showTrip(initialQuery || 'Plan my LA trip');
     } else if (initialQuery) {
       lastQuery = initialQuery;
       fetchRecommendations(initialQuery).then(() => renderHome(initialQuery)).catch(() => renderHome(initialQuery));
