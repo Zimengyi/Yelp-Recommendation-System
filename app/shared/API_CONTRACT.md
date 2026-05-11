@@ -10,7 +10,7 @@
 |---|---|---|---|
 | **S0 — Homepage push recommendation** | F1 Chat Home (entry view, `query=null`) | App open / refresh | `homepage_push` — Pipeline C with empty query, returns top-3 cards based on user profile + time-of-day |
 | **S2 — Query-based chat recommendation** | F1 Chat Home (with input) | User types & presses send | `query_chat` — query intent hard-filter (cuisine/price) → shared DeepFM v2 rerank |
-| **S6 — Trip plan generation** | F2 Trip Plan | User asks for a trip / taps Trip Planner | `trip_plan` — run Pipeline C per meal period, then MMR top-3 for candidate diversity |
+| **S6 — Trip plan generation** | F2 Trip Plan | User taps Trip Planner, which mounts Trip mode onto the input, then sends a travel query | `trip_plan` — run Pipeline C per meal period, then MMR top-3 for candidate diversity |
 
 F1.1 Restaurant Detail Overlay remains visual-only in the current demo. F2 Trip Plan is now wired through `/api/trip/plan`.
 
@@ -231,7 +231,7 @@ Trip flow: static city activity template → per-period Pipeline C candidates �
 3. **Two screens**:
    - **F1 Chat Home (homepage push)** — load on app open, calls `/api/recommend` with `query=null`. Renders 3 cards by default + "show more" expand to 10.
    - **F1 Chat Home (chat input)** — text input at bottom; on submit, calls `/api/recommend` with `query=<input>`. Replaces card list.
-   - **F2 Trip Plan** — trip intent calls `/api/trip/plan`; day tabs and per-period candidate switching are frontend state over the returned payload.
+   - **F2 Trip Plan** — tapping Trip Planner activates a highlighted Trip input mode; the next submitted travel query calls `/api/trip/plan`. Day tabs and per-period candidate switching are frontend state over the returned payload.
 4. **User picker** — top-of-page `st.selectbox` populated from `/api/users/sample?n=10`. Sticky in session_state.
 5. **Card component** — match PRD F1-CD-01..05 fields: thumb (placeholder for v0.1), name, meta line, tagline, reason_chip.
 6. **Latency display** — small footer caption showing backend `debug.latency_ms`.
