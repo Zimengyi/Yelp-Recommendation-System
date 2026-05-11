@@ -188,15 +188,53 @@
       down:'<svg viewBox="0 0 24 24"><path d="M17 14V2"/><path d="M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-8A2 2 0 0 1 5.6 2H17"/><path d="M17 14 12 22a3 3 0 0 1-3-3.9"/></svg>',
       refresh:'<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>'
     };
+    const GENERIC_CATEGORIES = new Set(['Food', 'Nightlife', 'Shopping', 'Event Planning & Services', 'Arts & Entertainment']);
+    const TYPE_CATEGORIES = new Set([
+      'Restaurants', 'Bars', 'Lounges', 'Cocktail Bars', 'Wine Bars', 'Dive Bars', 'Sports Bars', 'Pubs',
+      'Sushi Bars', 'Ramen', 'Cafes', 'Coffee & Tea', 'Bakeries', 'Breakfast & Brunch', 'Delis',
+      'Sandwiches', 'Fast Food', 'Food Trucks', 'Diners', 'Gastropubs', 'Beer Bar'
+    ]);
     function esc(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function uniqueList(items) {
+      return [...new Set(items.map(item => String(item).trim()).filter(Boolean))];
+    }
+    function splitCategories(raw) {
+      if (Array.isArray(raw)) return uniqueList(raw);
+      return uniqueList(String(raw || '').split(/\s*[·,]\s*/));
+    }
+    function categoryFields(raw) {
+      const cats = splitCategories(raw);
+      const visible = cats.filter(cat => !GENERIC_CATEGORIES.has(cat));
+      const cuisine = visible.find(cat => !TYPE_CATEGORIES.has(cat)) || visible[0] || 'Restaurant';
+      const kind = visible.find(cat => cat !== cuisine && TYPE_CATEGORIES.has(cat))
+        || visible.find(cat => cat !== cuisine)
+        || cats.find(cat => cat !== cuisine)
+        || 'Restaurants';
+      const pair = uniqueList([cuisine, kind]).slice(0, 2);
+      return {
+        cuisine,
+        kind,
+        display: pair.length > 1 ? `${pair[0]}, ${pair[1]}` : pair[0],
+        detail: uniqueList([...pair, ...visible.filter(cat => !pair.includes(cat))]).slice(0, 3).join(' · ')
+      };
+    }
+    function displayCategory(c) {
+      return c.categoryDisplay || categoryFields(c.category).display;
+    }
+    function detailCategory(c) {
+      return c.categoryDetail || categoryFields(c.category).detail || displayCategory(c);
+    }
     function normalizeCard(item) {
       const cats = (item.categories || []).filter(Boolean);
+      const fields = categoryFields(cats);
       const price = item.price_level > 0 ? '$'.repeat(item.price_level) : '?';
       return {
         name: item.name,
         rating: Number(item.rating || 0).toFixed(1),
         reviewCount: item.review_count || 0,
-        category: cats.slice(0,2).join(' · ') || 'Restaurant',
+        category: cats.join(' · ') || 'Restaurant',
+        categoryDisplay: fields.display,
+        categoryDetail: fields.detail,
         price,
         desc: item.reason_long || `${item.name} matched by Taste hunter.`,
         chip: item.reason_chip || `${price} · model pick`,
@@ -276,7 +314,7 @@
         period.activity,
         period.candidates.map(item => {
           const c = normalizeCard(item);
-          return [c.name, Number(c.rating), c.reviewCount, c.category, c.price, c.desc, c.chip];
+          return [c.name, Number(c.rating), c.reviewCount, c.categoryDisplay, c.price, c.desc, c.chip];
         })
       ]));
       return data;
@@ -284,7 +322,7 @@
     function cardHTML(c, i, clickable=true) {
       return `<button class="card" ${clickable ? `onclick="openDetail(${i})"` : ''}>
         <div class="thumb">${esc(c.name[0])}</div><div>
-          <h3>${esc(c.name)}</h3><p class="meta">★ ${c.rating} (${c.reviewCount.toLocaleString()}) · ${esc(c.category)} · ${esc(c.price)}</p>
+          <h3>${esc(c.name)}</h3><p class="meta">★ ${c.rating} (${c.reviewCount.toLocaleString()}) · ${esc(displayCategory(c))} · ${esc(c.price)}</p>
           <p class="desc">${esc(c.desc)}</p><span class="chip">${esc(c.chip)}</span>
         </div></button>`;
     }
@@ -329,8 +367,8 @@
     function renderSheet(){
       const c=cards[detailIndex], total=Math.min(cards.length, expanded?10:3);
       $('#sheet').innerHTML = `<div class="hero"><button class="close" onclick="closeDetail()">×</button><div class="photo-count">▣ 5</div></div>
-      <div class="sheet-body"><div class="title-row"><h2>${esc(c.name)} <span>(Arts District)</span></h2><span class="copy-mini">□</span></div>
-      <p class="detail-meta">${c.rating} ★ (${c.reviewCount.toLocaleString()}) · ${esc(c.category)} · ${esc(c.price)}</p>
+      <div class="sheet-body"><div class="title-row"><h2>${esc(c.name)} <span>(${esc(displayCategory(c))})</span></h2><span class="copy-mini">□</span></div>
+      <p class="detail-meta">${c.rating} ★ (${c.reviewCount.toLocaleString()}) · ${esc(detailCategory(c))} · ${esc(c.price)}</p>
       <div class="pills"><button class="pill dark">Directions</button><button class="pill">Call</button><button class="pill">Website</button></div>
       <div class="panel"><section><h4>AI Overview</h4><p>${esc(c.desc)} 本周值得优先考虑，路线和时段都很顺。</p></section>
       <section><h4>Review · ★ ${c.rating}</h4><p>“A genuinely local crowd and an unhurried atmosphere make this spot feel honest.”</p><small>— Yelp top review</small></section>
