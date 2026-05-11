@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import math
 import time
 from datetime import datetime, timezone
 from typing import Optional
@@ -13,6 +14,11 @@ try:
         HealthResponse,
         RecommendRequest,
         RecommendResponse,
+        TripDayPlan,
+        TripPeriodPlan,
+        TripPlanDebug,
+        TripPlanRequest,
+        TripPlanResponse,
         UserSampleResponse,
     )
     from .pipeline_c import DeepFMPipeline, MockPipeline, PipelineC
@@ -21,6 +27,11 @@ except ImportError:
         HealthResponse,
         RecommendRequest,
         RecommendResponse,
+        TripDayPlan,
+        TripPeriodPlan,
+        TripPlanDebug,
+        TripPlanRequest,
+        TripPlanResponse,
         UserSampleResponse,
     )
     from pipeline_c import DeepFMPipeline, MockPipeline, PipelineC
@@ -81,3 +92,172 @@ def recommend(req: RecommendRequest) -> RecommendResponse:
         },
         ts=datetime.now(timezone.utc).isoformat(),
     )
+
+
+@router.post("/trip/plan", response_model=TripPlanResponse)
+def plan_trip(req: TripPlanRequest) -> TripPlanResponse:
+    started = time.perf_counter()
+    pipeline = get_pipeline()
+    city = _normalize_city(req.destination_city)
+    activity_days = _activity_template(city, req.days)
+    days: list[TripDayPlan] = []
+    diversity_scores: list[float] = []
+
+    for day_index, periods in enumerate(activity_days, start=1):
+        period_plans: list[TripPeriodPlan] = []
+        day_seen_cuisines: set[str] = set()
+        for period, label, activity, food_hint in periods:
+            query = " ".join(part for part in [req.query, food_hint] if part).strip()
+            recommendations, _ = pipeline.recommend(
+                user_id=req.user_id,
+                query=query,
+                target_city=city,
+                top_k=20,
+            )
+            selected = _mmr_select(
+                recommendations,
+                k=req.candidates_per_period,
+                lambda_=0.65,
+                day_seen_cuisines=day_seen_cuisines,
+            )
+            for candidate in selected:
+                cuisine = _primary_display_cuisine(candidate.categories)
+                if cuisine:
+                    day_seen_cuisines.add(cuisine)
+            diversity = _candidate_diversity(selected)
+            diversity_scores.append(diversity)
+            period_plans.append(
+                TripPeriodPlan(
+                    period=period,
+                    label=label,
+                    activity=activity,
+                    candidates=selected,
+                    diversity_score=round(diversity, 4),
+                )
+            )
+        days.append(
+            TripDayPlan(
+                day_index=day_index,
+                title=f"DAY {day_index}",
+                periods=period_plans,
+            )
+        )
+
+    mean_diversity = sum(diversity_scores) / max(len(diversity_scores), 1)
+    return TripPlanResponse(
+        user_id=req.user_id,
+        destination_city=city,
+        days=days,
+        debug=TripPlanDebug(
+            latency_ms=(time.perf_counter() - started) * 1000.0,
+            model_version=pipeline.model_version,
+            pipeline="S6 trip plan: intent hard-filter + DeepFM v2 + MMR top-3",
+            mmr_lambda=0.65,
+            mean_period_diversity=round(mean_diversity, 4),
+        ),
+        ts=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+def _normalize_city(city: str) -> str:
+    lookup = {
+        "philly": "Philadelphia",
+        "philadelphia": "Philadelphia",
+        "tampa": "Tampa",
+        "tucson": "Tucson",
+    }
+    return lookup.get(city.strip().lower(), "Philadelphia")
+
+
+def _activity_template(city: str, days: int) -> list[list[tuple[str, str, str, str]]]:
+    templates = {
+        "Philadelphia": [
+            [
+                ("morning", "早晨", "Old City 历史街区散步，顺路看 Independence Hall。", "coffee brunch"),
+                ("lunch", "中午", "沿 Walnut Street 和 Washington Square 轻松逛一圈。", "sandwiches lunch"),
+                ("evening", "晚上", "去 Rittenhouse Square 周边吃一顿收尾晚餐。", "dinner"),
+            ],
+            [
+                ("morning", "早晨", "Philadelphia Museum of Art 和 Schuylkill River Trail。", "coffee brunch"),
+                ("lunch", "中午", "Fairmount 一带慢走，避开过长绕路。", "pizza lunch"),
+                ("evening", "晚上", "Fishtown / Northern Liberties 晚间小店和酒吧。", "bar dinner"),
+            ],
+            [
+                ("morning", "早晨", "Reading Terminal Market 附近开始一天。", "breakfast brunch"),
+                ("lunch", "中午", "Chinatown 和 Center City 之间短距离移动。", "sushi japanese lunch"),
+                ("evening", "晚上", "Penn's Landing 河边散步后吃最后一餐。", "seafood dinner"),
+            ],
+        ],
+        "Tampa": [
+            [
+                ("morning", "早晨", "Tampa Riverwalk 轻松散步。", "coffee brunch"),
+                ("lunch", "中午", "Ybor City 历史街区和小店。", "sandwiches lunch"),
+                ("evening", "晚上", "Water Street 周边晚餐。", "seafood dinner"),
+            ]
+        ],
+        "Tucson": [
+            [
+                ("morning", "早晨", "Saguaro National Park 早间短线。", "coffee breakfast"),
+                ("lunch", "中午", "Downtown Tucson 壁画和街区。", "mexican lunch"),
+                ("evening", "晚上", "University / Fourth Avenue 晚餐。", "bar dinner"),
+            ]
+        ],
+    }
+    base = templates.get(city, templates["Philadelphia"])
+    return [base[i % len(base)] for i in range(days)]
+
+
+def _mmr_select(
+    candidates,
+    k: int,
+    lambda_: float,
+    day_seen_cuisines: set[str],
+):
+    remaining = list(candidates)
+    selected = []
+    while remaining and len(selected) < k:
+        best_idx = 0
+        best_score = -float("inf")
+        for idx, candidate in enumerate(remaining):
+            relevance = float(candidate.score)
+            similarity = max((_candidate_similarity(candidate, item) for item in selected), default=0.0)
+            cuisine = _primary_display_cuisine(candidate.categories)
+            day_penalty = 0.08 if cuisine and cuisine in day_seen_cuisines else 0.0
+            mmr_score = lambda_ * relevance - (1.0 - lambda_) * similarity - day_penalty
+            if mmr_score > best_score:
+                best_idx = idx
+                best_score = mmr_score
+        selected.append(remaining.pop(best_idx))
+    return selected
+
+
+def _candidate_similarity(a, b) -> float:
+    a_vec = _candidate_tokens(a)
+    b_vec = _candidate_tokens(b)
+    if not a_vec or not b_vec:
+        return 0.0
+    overlap = len(a_vec & b_vec)
+    return overlap / math.sqrt(len(a_vec) * len(b_vec))
+
+
+def _candidate_tokens(candidate) -> set[str]:
+    tokens = {f"price:{candidate.price_level}"}
+    tokens.update(f"cat:{c.lower()}" for c in candidate.categories[:4])
+    tokens.add(f"region:{round(candidate.lat, 2)}:{round(candidate.lon, 2)}")
+    return tokens
+
+
+def _candidate_diversity(candidates) -> float:
+    cuisines = [_primary_display_cuisine(c.categories) for c in candidates]
+    cuisines = [c for c in cuisines if c]
+    if len(cuisines) <= 1:
+        return 0.0
+    return len(set(cuisines)) / len(cuisines)
+
+
+def _primary_display_cuisine(categories: list[str]) -> str:
+    ignored = {"restaurants", "food", "nightlife", "bars"}
+    for category in categories:
+        if category.lower() not in ignored:
+            return category
+    return categories[0] if categories else ""

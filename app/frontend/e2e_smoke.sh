@@ -146,7 +146,7 @@ else
     echo "[smoke] ⚠️  streamlit /_stcore/health did not return 'ok' (continuing)"
 fi
 
-# ---- 4. Backend smoke — exercise all 3 endpoints in mock mode ----
+# ---- 4. Backend smoke — exercise the core API endpoints in mock mode ----
 if [[ "$BACKEND_AVAILABLE" == "1" ]]; then
     echo "[smoke] verifying /api/users/sample …"
     USERS_JSON="$(curl -sf "http://localhost:$BACKEND_PORT/api/users/sample?n=3")"
@@ -168,6 +168,14 @@ if [[ "$BACKEND_AVAILABLE" == "1" ]]; then
         -d "{\"user_id\":\"$USER_ID\",\"query\":\"想吃辣的\",\"top_k\":5}")"
     echo "$REC2_JSON" | grep -q '"query_chat"' || { echo "[smoke] ❌ /api/recommend mode != query_chat"; exit 1; }
     echo "[smoke] ✅ /api/recommend query_chat OK"
+
+    echo "[smoke] verifying /api/trip/plan (S6 trip + MMR) …"
+    TRIP_JSON="$(curl -sf -X POST "http://localhost:$BACKEND_PORT/api/trip/plan" \
+        -H 'Content-Type: application/json' \
+        -d "{\"user_id\":\"$USER_ID\",\"query\":\"cheap\",\"destination_city\":\"Philadelphia\",\"days\":1,\"candidates_per_period\":3}")"
+    echo "$TRIP_JSON" | grep -q '"days"' || { echo "[smoke] ❌ /api/trip/plan missing 'days'"; exit 1; }
+    echo "$TRIP_JSON" | grep -q '"mean_period_diversity"' || { echo "[smoke] ❌ /api/trip/plan missing MMR diversity debug"; exit 1; }
+    echo "[smoke] ✅ /api/trip/plan S6 OK"
 fi
 
 echo

@@ -1,6 +1,6 @@
 # Taste hunter — Frontend ↔ Backend API Contract
 
-**Version**: v0.1 (2026-05-09)
+**Version**: v0.2 (2026-05-11)
 **Stack**: FastAPI backend ↔ Streamlit frontend (HTTP/JSON)
 **Purpose**: Wire Phase 8 Streamlit demo to Pipeline C (Phase 6.1c hard-filter + DeepFM v2 ranking). Mock first, swap to real model tomorrow.
 
@@ -9,9 +9,10 @@
 | Scenario | UI screen | Trigger | Backend mode |
 |---|---|---|---|
 | **S0 — Homepage push recommendation** | F1 Chat Home (entry view, `query=null`) | App open / refresh | `homepage_push` — Pipeline C with empty query, returns top-3 cards based on user profile + time-of-day |
-| **S2 — Query-based chat recommendation** | F1 Chat Home (with input) | User types & presses send | `query_chat` — Pipeline C with NL query passed through (currently treated same as S0; future: LLM intent extraction inserts hard-filter constraints) |
+| **S2 — Query-based chat recommendation** | F1 Chat Home (with input) | User types & presses send | `query_chat` — query intent hard-filter (cuisine/price) → shared DeepFM v2 rerank |
+| **S6 — Trip plan generation** | F2 Trip Plan | User asks for a trip / taps Trip Planner | `trip_plan` — run Pipeline C per meal period, then MMR top-3 for candidate diversity |
 
-F1.1 Restaurant Detail Overlay and F2 Trip Plan are explicitly **out of scope for this v0.1**.
+F1.1 Restaurant Detail Overlay remains visual-only in the current demo. F2 Trip Plan is now wired through `/api/trip/plan`.
 
 ---
 
@@ -141,6 +142,64 @@ Returns a sample of `n` user_ids for the demo's user-picker dropdown.
 | `n` | 5 | Max 20 |
 | `city` | null | Filter to users whose dominant city = given. Null = mixed |
 
+### `POST /api/trip/plan`
+
+Generates the F2 Trip Plan payload: `days × periods × 3 candidates`.
+
+**Request body**:
+
+```json
+{
+  "user_id": "<NEW_USER>",
+  "query": "cheap Philadelphia trip",
+  "destination_city": "Philadelphia",
+  "days": 3,
+  "candidates_per_period": 3
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `user_id` | str | yes | Same user id semantics as `/api/recommend` |
+| `query` | str \| null | no | Trip-level user constraints, e.g. budget/dietary/cuisine |
+| `destination_city` | str | no | Demo supports Philadelphia/Tampa/Tucson templates |
+| `days` | int | no | 1–5 |
+| `candidates_per_period` | int | no | 1–5, demo uses 3 |
+
+**Response body**:
+
+```json
+{
+  "user_id": "<NEW_USER>",
+  "destination_city": "Philadelphia",
+  "days": [
+    {
+      "day_index": 1,
+      "title": "DAY 1",
+      "periods": [
+        {
+          "period": "morning",
+          "label": "早晨",
+          "activity": "Old City 历史街区散步，顺路看 Independence Hall。",
+          "candidates": [{ "...": "Candidate schema, same as /api/recommend" }],
+          "diversity_score": 1.0
+        }
+      ]
+    }
+  ],
+  "debug": {
+    "latency_ms": 1900.0,
+    "model_version": "deepfm_final_v2",
+    "pipeline": "S6 trip plan: intent hard-filter + DeepFM v2 + MMR top-3",
+    "mmr_lambda": 0.65,
+    "mean_period_diversity": 1.0
+  },
+  "ts": "2026-05-11T20:40:00Z"
+}
+```
+
+Trip flow: static city activity template → per-period Pipeline C candidates → MMR rerank with cuisine + price + coarse region similarity → top-3 candidates for F2 ‹ › switching.
+
 ### `GET /api/business/<business_id>`
 
 (Out of scope for v0.1 — F1.1 detail overlay; stub it but return 501.)
@@ -172,6 +231,7 @@ Returns a sample of `n` user_ids for the demo's user-picker dropdown.
 3. **Two screens**:
    - **F1 Chat Home (homepage push)** — load on app open, calls `/api/recommend` with `query=null`. Renders 3 cards by default + "show more" expand to 10.
    - **F1 Chat Home (chat input)** — text input at bottom; on submit, calls `/api/recommend` with `query=<input>`. Replaces card list.
+   - **F2 Trip Plan** — trip intent calls `/api/trip/plan`; day tabs and per-period candidate switching are frontend state over the returned payload.
 4. **User picker** — top-of-page `st.selectbox` populated from `/api/users/sample?n=10`. Sticky in session_state.
 5. **Card component** — match PRD F1-CD-01..05 fields: thumb (placeholder for v0.1), name, meta line, tagline, reason_chip.
 6. **Latency display** — small footer caption showing backend `debug.latency_ms`.
@@ -229,6 +289,7 @@ PIPELINE=deepfm uvicorn main:app --port 8000  # loads deepfm_final_v2.pt
 - [ ] Backend `/api/health` returns 200 with `model_loaded: true|false`
 - [ ] Backend `/api/recommend` mock mode returns ≥3 valid candidates within 50ms
 - [ ] Backend `/api/recommend` deepfm mode returns ≥3 valid candidates within 200ms p95
+- [ ] Backend `/api/trip/plan` returns 3 days × 3 periods × 3 candidates with `mean_period_diversity >= 0.66`
 - [ ] Frontend boots on `streamlit run app.py` and shows top bar + 3 cards on load
 - [ ] User can switch demo users via dropdown — cards refresh
 - [ ] User can type query + send — cards refresh with mode=`query_chat`
@@ -239,7 +300,7 @@ PIPELINE=deepfm uvicorn main:app --port 8000  # loads deepfm_final_v2.pt
 ## What's NOT in scope (v0.1)
 
 - F1.1 Restaurant Detail Overlay (bottom sheet)
-- F2 Trip Plan (day tabs)
+- Fully LLM-generated activity text for F2 Trip Plan (current demo uses city templates)
 - LLM agent layer (intent extraction, AI Overview generation) — query is passed through to model as-is
 - Authentication / user accounts
 - Real Yelp photos (use placeholder color block per PRD `card.thumb.placeholder = #DCDDE8`)

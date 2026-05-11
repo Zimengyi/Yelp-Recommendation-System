@@ -129,7 +129,7 @@
       {name:"Terakawa Ramen", rating:4.5, reviewCount:1693, category:"Japanese", price:"$$", desc:"热汤面和小食适合午后", chip:"想吃日料"},
       {name:"Zahav", rating:4.5, reviewCount:3065, category:"Middle Eastern", price:"$$$$", desc:"仪式感晚餐，评分稳定", chip:"高分热门"}
     ];
-    const tripData = [
+    let tripData = [
       [
         ["早晨","参观盖蒂中心，欣赏欧洲艺术收藏和花园景观。",[
           ["Getty View Café",4.6,892,"Café","$$","Bright coffee stop before the museum climb.","距盖蒂中心 0.3 mi"],
@@ -198,6 +198,30 @@
       cards = data.recommendations.map(normalizeCard);
       return data;
     }
+    async function fetchTripPlan(query='Plan my Philadelphia trip') {
+      const res = await fetch(`${BACKEND_URL}/api/trip/plan`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          user_id: DEMO_USER_ID,
+          query,
+          destination_city: 'Philadelphia',
+          days: 3,
+          candidates_per_period: 3
+        })
+      });
+      if (!res.ok) throw new Error(`Backend ${res.status}`);
+      const data = await res.json();
+      tripData = data.days.map(dayPlan => dayPlan.periods.map(period => [
+        period.label,
+        period.activity,
+        period.candidates.map(item => {
+          const c = normalizeCard(item);
+          return [c.name, Number(c.rating), c.reviewCount, c.category, c.price, c.desc, c.chip];
+        })
+      ]));
+      return data;
+    }
     function cardHTML(c, i, clickable=true) {
       return `<button class="card" ${clickable ? `onclick="openDetail(${i})"` : ''}>
         <div class="thumb">${esc(c.name[0])}</div><div>
@@ -240,7 +264,20 @@
       <div class="attrib">Yelp Open Dataset · #b1u2 · 2026</div></div>
       <div class="bottom-nav"><button class="nav-circle" ${detailIndex===0?'disabled':''} onclick="moveDetail(-1)">‹</button><div class="counter">${detailIndex+1} of ${total}</div><button class="nav-circle" ${detailIndex===total-1?'disabled':''} onclick="moveDetail(1)">›</button></div>`;
     }
-    function showTrip(){ $('#home').classList.add('hidden'); $('#trip').classList.remove('hidden'); renderTrip(); }
+    async function showTrip(query='Plan my Philadelphia trip'){
+      $('#home').classList.add('hidden');
+      $('#trip').classList.remove('hidden');
+      $('#trip').innerHTML = `<div class="trip-head"><div><h1>Building trip…</h1><p class="sub">S6 is running Pipeline C for each meal slot, then MMR selects 3 diverse candidates.</p></div></div>`;
+      try {
+        await fetchTripPlan(query);
+        day = 0;
+        slotIdx = {};
+        renderTrip();
+      } catch (err) {
+        $('#trip').innerHTML = `<div class="trip-head"><div><h1>Trip backend unavailable</h1><p class="sub">${esc(err.message)} · showing cached demo plan.</p></div></div>`;
+        setTimeout(renderTrip, 900);
+      }
+    }
     function slotCard(period, pIndex) {
       const key = `${day}-${pIndex}`, idx = slotIdx[key] || 0, r = period[2][idx];
       const c = {name:r[0], rating:r[1], reviewCount:r[2], category:r[3], price:r[4], desc:r[5], chip:r[6]};
@@ -249,7 +286,7 @@
       <div class="dots">${[0,1,2].map(i=>`<span class="dot ${i===idx?'active':''}"></span>`).join('')}</div>`;
     }
     function renderTrip(){
-      $('#trip').innerHTML = `<div class="trip-head"><div><h1>LA · 3 days · 9 meals</h1><p class="sub">Generated from your itinerary · regional clustering + cuisine diversity</p></div><button class="export">⇩ 导出</button></div>
+      $('#trip').innerHTML = `<div class="trip-head"><div><h1>Philadelphia · 3 days · 9 meals</h1><p class="sub">S6 Trip Plan · Pipeline C per slot · MMR top-3 candidate diversity</p></div><button class="export">⇩ 导出</button></div>
       <div class="tabs">${[0,1,2].map(i=>`<button class="tab ${i===day?'active':''}" onclick="day=${i};renderTrip()">DAY ${i+1}</button>`).join('')}</div>
       ${tripData[day].map((p,i)=>`<section class="period"><h2>${p[0]}</h2><p class="activity">${p[1]}</p>${slotCard(p,i)}</section>`).join('')}`;
     }
@@ -257,7 +294,7 @@
     async function submitQuery() {
       const q=$('#chatInput').value.trim(); if(!q) return;
       $('#chatInput').value=''; $('#sendBtn').classList.remove('enabled');
-      if (/trip|行程|旅行|旅游|玩/.test(q.toLowerCase())) { showTrip(); return; }
+      if (/trip|行程|旅行|旅游|玩/.test(q.toLowerCase())) { showTrip(q); return; }
       lastQuery = q;
       $('#home').classList.remove('hidden');
       $('#trip').classList.add('hidden');
@@ -273,8 +310,12 @@
     $('#sendBtn').addEventListener('click', submitQuery);
     $('#chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitQuery(); });
     $('#backdrop').addEventListener('click', closeDetail);
-    const initialQuery = new URLSearchParams(window.location.search).get('q') || '';
-    if (initialQuery) {
+    const params = new URLSearchParams(window.location.search);
+    const initialQuery = params.get('q') || '';
+    const initialTrip = params.get('trip') === '1';
+    if (initialTrip) {
+      showTrip(initialQuery || 'Plan my Philadelphia trip');
+    } else if (initialQuery) {
       lastQuery = initialQuery;
       fetchRecommendations(initialQuery).then(() => renderHome(initialQuery)).catch(() => renderHome(initialQuery));
     } else {

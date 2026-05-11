@@ -51,6 +51,44 @@ class RecommendResponse(BaseModel):
     ts: str
 
 
+class TripPlanRequest(BaseModel):
+    user_id: str
+    query: Optional[str] = None
+    destination_city: str = "Philadelphia"
+    days: int = Field(default=3, ge=1, le=5)
+    candidates_per_period: int = Field(default=3, ge=1, le=5)
+
+
+class TripPeriodPlan(BaseModel):
+    period: Literal["morning", "lunch", "evening"]
+    label: str
+    activity: str
+    candidates: list[Candidate]
+    diversity_score: float
+
+
+class TripDayPlan(BaseModel):
+    day_index: int
+    title: str
+    periods: list[TripPeriodPlan]
+
+
+class TripPlanDebug(BaseModel):
+    latency_ms: float
+    model_version: str
+    pipeline: str
+    mmr_lambda: float
+    mean_period_diversity: float
+
+
+class TripPlanResponse(BaseModel):
+    user_id: str
+    destination_city: str
+    days: list[TripDayPlan]
+    debug: TripPlanDebug
+    ts: str
+
+
 class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     model_loaded: bool
