@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taste hunter — Figma demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --peach-500:#F5DCA6; --bg-canvas:#fff; --bg-card:#fff; --bg-panel:#EBEBEB;
+      --bg-input:#F2F2F2; --bg-quick:#EBEBEB; --text-primary:#1A1A1A;
+      --text-secondary:#737373; --text-tertiary:#8C8C8C; --text-body:#4D4D4D;
+      --border-light:#C7C7C7; --border-dark:#222; --divider:#D6D6D6;
+      --chip-bg:#F0F2FF; --chip-text:#3349B3; --primary-fill:#1A1A1A;
+      --primary-text:#fff; --photo-placeholder:#B8A89E; --thumb:#DCDDE8;
+      --shadow-card:0 2px 12px rgba(0,0,0,.08); --shadow-float:0 2px 8px rgba(0,0,0,.12);
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; min-height:100%; background:#f6f6f6; color:var(--text-primary); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    button { font:inherit; }
+    .phone { width:min(100vw,430px); min-height:100vh; margin:0 auto; background:var(--bg-canvas); position:relative; overflow:hidden; }
+    .topbar { height:84px; padding:50px 20px 14px; background:var(--peach-500); display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:10; }
+    .icon { width:28px; height:28px; display:grid; place-items:center; color:#1A1A1A; }
+    .icon svg { width:100%; height:100%; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .brand { font-weight:600; font-size:21px; }
+    .content { padding:20px 20px 118px; }
+    .greeting { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
+    h1 { margin:0 0 6px; font-size:32px; line-height:1.15; letter-spacing:0; }
+    .sub { margin:0; color:var(--text-secondary); font-size:17px; line-height:1.35; }
+    .card { width:100%; border:0; text-align:left; background:var(--bg-card); border-radius:12px; box-shadow:var(--shadow-card); padding:12px; margin:0 0 10px; display:grid; grid-template-columns:80px 1fr; gap:12px; cursor:pointer; color:inherit; }
+    .thumb { width:80px; height:96px; border-radius:10px; background:var(--thumb); color:rgba(0,0,0,.18); display:grid; place-items:center; font-size:28px; flex:0 0 auto; }
+    .card h3 { margin:2px 0 5px; font-size:20px; line-height:1.15; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .meta { margin:0 0 5px; color:var(--text-secondary); font-size:15px; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .desc { margin:0 0 8px; color:var(--text-body); font-size:16px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chip { display:inline-block; background:var(--chip-bg); color:var(--chip-text); border-radius:6px; padding:3px 8px; font-size:14px; font-weight:500; line-height:1.2; }
+    .show-more { display:block; margin:0 auto 14px; border:0; background:transparent; color:#9AA0A6; font-size:28px; width:44px; height:34px; transition:.15s transform; }
+    .show-more.expanded { transform:rotate(180deg); }
+    .actions { display:flex; gap:18px; align-items:center; margin:7px 0 14px; color:#8A8A8A; }
+    .actions button { width:20px; height:20px; border:0; background:transparent; padding:0; color:inherit; }
+    .actions svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .quick { margin:0 0 14px; }
+    .trip-pill { border:0; background:var(--bg-quick); color:var(--text-primary); border-radius:18px; padding:8px 14px; font-size:16px; font-weight:500; display:inline-flex; align-items:center; gap:8px; }
+    .inputbar { position:fixed; left:50%; bottom:0; transform:translateX(-50%); width:min(100vw,430px); background:#fff; padding:12px 20px 28px; display:grid; grid-template-columns:1fr 40px; gap:10px; z-index:20; border-top:1px solid rgba(0,0,0,.04); }
+    .inputbar input { width:100%; height:44px; border:0; outline:0; background:var(--bg-input); border-radius:22px; padding:0 16px; font-size:18px; color:var(--text-primary); }
+    .inputbar input:focus { box-shadow:0 0 0 1px var(--border-light) inset; }
+    .send { width:40px; height:40px; border-radius:999px; border:0; background:var(--primary-fill); color:#fff; display:grid; place-items:center; opacity:.3; }
+    .send.enabled { opacity:1; }
+    .send svg { width:19px; height:19px; fill:none; stroke:currentColor; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+    .user-bubble { margin:4px 0 16px auto; max-width:80%; background:var(--bg-quick); border-radius:14px; padding:10px 14px; color:var(--text-body); font-size:16px; line-height:1.35; }
+    .hidden { display:none !important; }
+
+    .backdrop { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:50; opacity:0; pointer-events:none; transition:.2s opacity; }
+    .backdrop.open { opacity:1; pointer-events:auto; }
+    .sheet { position:fixed; z-index:60; left:50%; bottom:0; transform:translate(-50%,100%); width:min(100vw,430px); height:95vh; background:#fff; border-radius:20px 20px 0 0; overflow:auto; transition:.3s transform ease-out; box-shadow:0 -10px 35px rgba(0,0,0,.22); }
+    .sheet.open { transform:translate(-50%,0); }
+    .hero { height:280px; background:var(--photo-placeholder); position:relative; border-radius:20px 20px 0 0; }
+    .close { position:absolute; top:14px; left:14px; width:32px; height:32px; border-radius:999px; border:0; background:#fff; color:var(--border-dark); font-size:25px; line-height:1; display:grid; place-items:center; }
+    .photo-count { position:absolute; right:14px; bottom:14px; background:rgba(0,0,0,.55); color:#fff; border-radius:12px; padding:5px 9px; font-size:14px; font-weight:500; }
+    .sheet-body { padding:18px 20px 112px; }
+    .title-row { display:flex; align-items:center; gap:8px; }
+    .title-row h2 { margin:0; font-family:"Playfair Display","PT Serif",serif; font-size:31px; line-height:1.1; }
+    .title-row span { font-family:"Playfair Display","PT Serif",serif; font-size:23px; }
+    .copy-mini { color:#666; font-size:18px; }
+    .detail-meta { margin:9px 0 15px; color:var(--text-secondary); font-size:17px; }
+    .pills { display:flex; gap:8px; margin-bottom:16px; }
+    .pill { border:1px solid var(--border-light); background:#fff; color:var(--text-primary); border-radius:22px; padding:11px 20px; font-size:18px; font-weight:500; }
+    .pill.dark { background:var(--primary-fill); border-color:var(--primary-fill); color:#fff; }
+    .panel { background:var(--bg-panel); border-radius:16px; padding:16px; }
+    .panel section + section { border-top:1px solid var(--divider); margin-top:14px; padding-top:14px; }
+    .panel h4 { margin:0 0 8px; font-size:17px; font-weight:600; }
+    .panel p { margin:0; color:var(--text-body); font-size:16px; line-height:1.45; }
+    .panel small { display:block; color:var(--text-tertiary); margin-top:7px; font-size:14px; }
+    .attrib { padding:9px 0; color:var(--text-tertiary); font-size:14px; }
+    .bottom-nav { position:fixed; left:50%; bottom:32px; transform:translateX(-50%); display:flex; gap:12px; align-items:center; z-index:70; }
+    .nav-circle { width:48px; height:48px; border-radius:999px; border:1px solid var(--border-light); background:#fff; box-shadow:var(--shadow-float); font-size:30px; color:var(--border-dark); }
+    .nav-circle:disabled { opacity:.3; }
+    .counter { background:#fff; border-radius:999px; box-shadow:var(--shadow-float); padding:12px 18px; font-size:20px; font-weight:500; }
+
+    .trip-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:14px; }
+    .trip-head h1 { font-size:31px; }
+    .export { border:1px solid var(--border-light); border-radius:18px; padding:8px 12px; font-weight:500; font-size:16px; white-space:nowrap; background:#fff; }
+    .tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:14px 0 18px; }
+    .tab { border:0; border-radius:999px; background:var(--bg-panel); color:var(--text-primary); padding:9px 16px; font-size:16px; font-weight:500; }
+    .tab.active { background:var(--primary-fill); color:#fff; }
+    .period { margin-bottom:18px; }
+    .period h2 { margin:0 0 6px; font-size:20px; line-height:1.25; }
+    .activity { margin:0 0 10px; color:var(--text-body); font-size:17px; line-height:1.5; }
+    .slot { position:relative; }
+    .slot .card { cursor:default; }
+    .slot-nav { position:absolute; top:50%; transform:translateY(-50%); width:28px; height:28px; border-radius:999px; border:1px solid var(--border-light); background:#fff; box-shadow:var(--shadow-float); z-index:2; }
+    .slot-nav.left { left:-8px; }
+    .slot-nav.right { right:-8px; }
+    .slot-nav:disabled { opacity:.3; }
+    .dots { display:flex; justify-content:center; gap:5px; margin:-2px 0 12px; }
+    .dot { width:6px; height:6px; border-radius:999px; background:var(--divider); }
+    .dot.active { background:var(--text-primary); }
+  </style>
+</head>
+<body>
+  <main class="phone">
+    <header class="topbar">
+      <div class="icon" aria-label="menu"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></div>
+      <div class="brand">Taste hunter</div>
+      <div class="icon" aria-label="user"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19a6 6 0 0 1 11 0"/></svg></div>
+    </header>
+    <section id="home" class="content"></section>
+    <section id="trip" class="content hidden"></section>
+    <div class="inputbar">
+      <input id="chatInput" placeholder="想吃辣？人均 30 以下？说说看…" />
+      <button id="sendBtn" class="send" aria-label="send"><svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/><path d="M12 9v12"/></svg></button>
+    </div>
+  </main>
+  <div id="backdrop" class="backdrop"></div>
+  <aside id="sheet" class="sheet"></aside>
+  <script>
+    const BACKEND_URL = 'http://127.0.0.1:8000';
+    const DEMO_USER_ID = '<NEW_USER>';
+    let cards = [
+      {name:"Moonlark's Dinette", rating:4.8, reviewCount:1038, category:"American · Brunch", price:"$$", desc:"Downtown 高分早午餐，炸鸡华夫饼必点", chip:"🌅 上午 10 点 · 1.1 mi · 周榜 Top 3"},
+      {name:"Cafe Corina", rating:4.6, reviewCount:421, category:"Coffee · Breakfast", price:"$$", desc:"本地人推荐的 latte + avocado toast 组合", chip:"📍 距你 0.8 mi · 周三上午营业中"},
+      {name:"Marlowe's Kitchen", rating:4.5, reviewCount:892, category:"Bakery · Pastry", price:"$", desc:"现烤可颂 + 手冲，安静角落适合一个人", chip:"🍪 与你常去的店风格相似"},
+      {name:"Sqirl", rating:4.4, reviewCount:2144, category:"Café · Brunch", price:"$$", desc:"果酱吐司和谷物碗是经典组合", chip:"早午餐相似偏好"},
+      {name:"Bestia", rating:4.6, reviewCount:4300, category:"Italian", price:"$$$$", desc:"艺术区高能晚餐，适合压轴", chip:"晚餐热门"},
+      {name:"Water Grill", rating:4.5, reviewCount:2100, category:"Seafood", price:"$$$", desc:"海鲜晚餐，路线好收", chip:"距酒店近"},
+      {name:"Tatsu Ramen", rating:4.7, reviewCount:571, category:"Ramen restaurant", price:"$", desc:"招牌 tonkotsu，汤底 12 小时熬制", chip:"艺术区核心"},
+      {name:"Cafe La Maude", rating:4.5, reviewCount:1485, category:"Sandwiches", price:"$$", desc:"周末 brunch 氛围稳定", chip:"同类高分"},
+      {name:"Terakawa Ramen", rating:4.5, reviewCount:1693, category:"Japanese", price:"$$", desc:"热汤面和小食适合午后", chip:"想吃日料"},
+      {name:"Zahav", rating:4.5, reviewCount:3065, category:"Middle Eastern", price:"$$$$", desc:"仪式感晚餐，评分稳定", chip:"高分热门"}
+    ];
+    const tripData = [
+      [
+        ["早晨","参观盖蒂中心，欣赏欧洲艺术收藏和花园景观。",[
+          ["Getty View Café",4.6,892,"Café","$$","Bright coffee stop before the museum climb.","距盖蒂中心 0.3 mi"],
+          ["Brentwood Bakery",4.5,421,"Bakery","$$","Quiet pastry counter for a slow morning.","早晨营业中"],
+          ["Garden Terrace",4.4,618,"American","$$","Light brunch with canyon views.","适合 museum day"]]],
+        ["中午","漫步圣莫尼卡海边，享受海风和阳光。",[
+          ["Pier Seafood",4.5,1204,"Seafood","$$","Casual seafood after the pier walk.","距 Santa Monica Pier 5 min 步行"],
+          ["Ocean Deli",4.4,733,"Sandwiches","$$","Fast lunch between beach stops.","路线顺路"],
+          ["Sunny Bowl",4.6,389,"Healthy","$$","Fresh bowls for a lighter midday meal.","轻食平衡"]]],
+        ["晚上","探索艺术区画廊，感受洛杉矶当代艺术氛围。",[
+          ["Tatsu Ramen",4.7,571,"Ramen","$","Late ramen near the gallery cluster.","艺术区核心，步行可达"],
+          ["Gallery Wine Bar",4.5,804,"Wine Bars","$$$","Good after-gallery small plates.","适合晚上"],
+          ["Little Tokyo Grill",4.6,956,"Japanese","$$","Short ride from the Arts District.","换一种日料"]]]
+      ],
+      [
+        ["早晨","去 Griffith Observatory 看城市天际线。",[["Hilltop Coffee",4.5,690,"Coffee","$$","Caffeine before the observatory trail.","距山路入口近"],["Los Feliz Brunch",4.6,1042,"Brunch","$$","Classic LA brunch near Griffith.","同区高分"],["Vermont Bakery",4.4,512,"Bakery","$","Quick pastry stop before parking.","节省时间"]]],
+        ["中午","沿 Hollywood 一带轻松走走，避开晚高峰。",[["Hollywood Tacos",4.5,1320,"Mexican","$","Fast, flavorful lunch near the walk.","换 cuisine"],["Sunset Thai",4.4,905,"Thai","$$","Spicy lunch option near Sunset.","想吃辣"],["Studio Diner",4.3,1108,"Diner","$$","Reliable comfort food for a group.","选择稳"]]],
+        ["晚上","在 LACMA 附近看灯光装置和夜景。",[["Wilshire Bistro",4.6,876,"American","$$$","Polished dinner near museum row.","距 LACMA 0.4 mi"],["Miracle Mile Sushi",4.5,488,"Sushi Bars","$$$","Clean sushi option after museum time.","晚餐轻盈"],["La Brea Pasta",4.4,611,"Italian","$$","Comfort pasta without a long detour.","路线紧凑"]]]
+      ],
+      [
+        ["早晨","在 Rodeo Drive 附近散步，看橱窗和街景。",[["Beverly Café",4.5,760,"Café","$$$","Quiet coffee before shopping streets.","步行 6 min"],["Canon Brunch",4.6,982,"Brunch","$$$","Polished breakfast near Beverly Hills.","适合慢早晨"],["Pastry House",4.4,348,"Desserts","$$","Small pastry stop before Rodeo.","轻量选择"]]],
+        ["中午","转去 Little Tokyo，逛小店和日式街区。",[["Daikokuya",4.5,3201,"Ramen","$$","Classic ramen anchor in Little Tokyo.","街区核心"],["Sushi Gen",4.6,2550,"Sushi Bars","$$$","High-signal sushi lunch option.","日料 top pick"],["Marugame Monzo",4.5,1760,"Japanese","$$","Handmade udon for a warmer lunch.","不重复 ramen"]]],
+        ["晚上","回到 Downtown，看夜景后吃一顿收尾晚餐。",[["Bavel",4.7,2500,"Middle Eastern","$$$","High-energy final dinner downtown.","收尾仪式感"],["Bestia",4.6,4300,"Italian","$$$$","Celebratory dinner with strong reviews.","高分热门"],["Water Grill",4.5,2100,"Seafood","$$$","Seafood dinner near downtown hotels.","路线好收"]]]
+      ],
+    ];
+    let expanded = false, detailIndex = 0, day = 0, slotIdx = {}, lastQuery = '';
+    const $ = s => document.querySelector(s);
+    const icon = {
+      copy:'<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+      up:'<svg viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 8A2 2 0 0 1 18.4 22H7"/><path d="M7 10 12 2a3 3 0 0 1 3 3.9"/></svg>',
+      down:'<svg viewBox="0 0 24 24"><path d="M17 14V2"/><path d="M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-8A2 2 0 0 1 5.6 2H17"/><path d="M17 14 12 22a3 3 0 0 1-3-3.9"/></svg>',
+      refresh:'<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>'
+    };
+    function esc(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function normalizeCard(item) {
+      const cats = (item.categories || []).filter(Boolean);
+      const price = item.price_level > 0 ? '$'.repeat(item.price_level) : '?';
+      return {
+        name: item.name,
+        rating: Number(item.rating || 0).toFixed(1),
+        reviewCount: item.review_count || 0,
+        category: cats.slice(0,2).join(' · ') || 'Restaurant',
+        price,
+        desc: item.reason_long || `${item.name} matched by Taste hunter.`,
+        chip: item.reason_chip || `${price} · model pick`,
+        address: item.address || '',
+        businessId: item.business_id,
+        score: item.score,
+        deepfmScore: item.deepfm_score,
+        filterPasses: item.filter_passes || []
+      };
+    }
+    async function fetchRecommendations(query='') {
+      const res = await fetch(`${BACKEND_URL}/api/recommend`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          user_id: DEMO_USER_ID,
+          query: query || null,
+          target_city: 'Philadelphia',
+          top_k: 10
+        })
+      });
+      if (!res.ok) throw new Error(`Backend ${res.status}`);
+      const data = await res.json();
+      cards = data.recommendations.map(normalizeCard);
+      return data;
+    }
+    function cardHTML(c, i, clickable=true) {
+      return `<button class="card" ${clickable ? `onclick="openDetail(${i})"` : ''}>
+        <div class="thumb">${esc(c.name[0])}</div><div>
+          <h3>${esc(c.name)}</h3><p class="meta">★ ${c.rating} (${c.reviewCount.toLocaleString()}) · ${esc(c.category)} · ${esc(c.price)}</p>
+          <p class="desc">${esc(c.desc)}</p><span class="chip">${esc(c.chip)}</span>
+        </div></button>`;
+    }
+    function renderHome(userMsg='') {
+      $('#trip').classList.add('hidden'); $('#home').classList.remove('hidden');
+      const visibleCount = Math.min(cards.length, expanded ? 10 : 3);
+      const list = cards.slice(0, visibleCount).map((c,i)=>cardHTML(c,i)).join('');
+      $('#home').innerHTML = `
+        ${userMsg ? `<div class="user-bubble">${esc(userMsg)}</div>` : ''}
+        <div class="greeting"><div><h1>${lastQuery ? esc(lastQuery) : 'Philadelphia picks'}</h1><p class="sub">Pipeline C · ${visibleCount} live picks · hard filter + DeepFM v2 rerank</p></div></div>
+        ${list}
+        <button class="show-more ${expanded ? 'expanded' : ''}" onclick="expanded=!expanded;renderHome()">⌄</button>
+        <div class="actions"><button>${icon.copy}</button><button>${icon.up}</button><button>${icon.down}</button><button>${icon.refresh}</button></div>
+        <div class="quick"><button class="trip-pill" onclick="showTrip()">✈ Trip Planner</button></div>`;
+    }
+    function openDetail(i){ detailIndex=i; renderSheet(); $('#backdrop').classList.add('open'); $('#sheet').classList.add('open'); }
+    function closeDetail(){
+      $('#backdrop').classList.remove('open');
+      $('#sheet').classList.remove('open');
+      setTimeout(() => { if (!$('#sheet').classList.contains('open')) $('#sheet').innerHTML=''; }, 300);
+    }
+    function moveDetail(delta){
+      const maxIndex = Math.max(0, Math.min(cards.length - 1, expanded ? 9 : 2));
+      detailIndex = Math.max(0,Math.min(maxIndex,detailIndex+delta));
+      renderSheet();
+    }
+    function renderSheet(){
+      const c=cards[detailIndex], total=Math.min(cards.length, expanded?10:3);
+      $('#sheet').innerHTML = `<div class="hero"><button class="close" onclick="closeDetail()">×</button><div class="photo-count">▣ 5</div></div>
+      <div class="sheet-body"><div class="title-row"><h2>${esc(c.name)} <span>(Arts District)</span></h2><span class="copy-mini">□</span></div>
+      <p class="detail-meta">${c.rating} ★ (${c.reviewCount.toLocaleString()}) · ${esc(c.category)} · ${esc(c.price)}</p>
+      <div class="pills"><button class="pill dark">Directions</button><button class="pill">Call</button><button class="pill">Website</button></div>
+      <div class="panel"><section><h4>AI Overview</h4><p>${esc(c.desc)} 本周值得优先考虑，路线和时段都很顺。</p></section>
+      <section><h4>Review · ★ ${c.rating}</h4><p>“A genuinely local crowd and an unhurried atmosphere make this spot feel honest.”</p><small>— Yelp top review</small></section>
+      <section><h4>menu</h4><p>Tonkotsu $16 · Spicy Miso $17 · Veggie $15 · Gyoza $8</p></section></div>
+      <div class="attrib">Yelp Open Dataset · #b1u2 · 2026</div></div>
+      <div class="bottom-nav"><button class="nav-circle" ${detailIndex===0?'disabled':''} onclick="moveDetail(-1)">‹</button><div class="counter">${detailIndex+1} of ${total}</div><button class="nav-circle" ${detailIndex===total-1?'disabled':''} onclick="moveDetail(1)">›</button></div>`;
+    }
+    function showTrip(){ $('#home').classList.add('hidden'); $('#trip').classList.remove('hidden'); renderTrip(); }
+    function slotCard(period, pIndex) {
+      const key = `${day}-${pIndex}`, idx = slotIdx[key] || 0, r = period[2][idx];
+      const c = {name:r[0], rating:r[1], reviewCount:r[2], category:r[3], price:r[4], desc:r[5], chip:r[6]};
+      return `<div class="slot"><button class="slot-nav left" ${idx===0?'disabled':''} onclick="slotIdx['${key}']=${Math.max(0,idx-1)};renderTrip()">‹</button>${cardHTML(c,0,false)}
+      <button class="slot-nav right" ${idx===2?'disabled':''} onclick="slotIdx['${key}']=${Math.min(2,idx+1)};renderTrip()">›</button></div>
+      <div class="dots">${[0,1,2].map(i=>`<span class="dot ${i===idx?'active':''}"></span>`).join('')}</div>`;
+    }
+    function renderTrip(){
+      $('#trip').innerHTML = `<div class="trip-head"><div><h1>LA · 3 days · 9 meals</h1><p class="sub">Generated from your itinerary · regional clustering + cuisine diversity</p></div><button class="export">⇩ 导出</button></div>
+      <div class="tabs">${[0,1,2].map(i=>`<button class="tab ${i===day?'active':''}" onclick="day=${i};renderTrip()">DAY ${i+1}</button>`).join('')}</div>
+      ${tripData[day].map((p,i)=>`<section class="period"><h2>${p[0]}</h2><p class="activity">${p[1]}</p>${slotCard(p,i)}</section>`).join('')}`;
+    }
+    $('#chatInput').addEventListener('input', e => $('#sendBtn').classList.toggle('enabled', e.target.value.trim().length>0));
+    async function submitQuery() {
+      const q=$('#chatInput').value.trim(); if(!q) return;
+      $('#chatInput').value=''; $('#sendBtn').classList.remove('enabled');
+      if (/trip|行程|旅行|旅游|玩/.test(q.toLowerCase())) { showTrip(); return; }
+      lastQuery = q;
+      $('#home').classList.remove('hidden');
+      $('#trip').classList.add('hidden');
+      $('#home').innerHTML = `<div class="user-bubble">${esc(q)}</div><div class="greeting"><h1>Ranking…</h1><p class="sub">Pipeline C is filtering candidates and running DeepFM v2.</p></div>`;
+      try {
+        await fetchRecommendations(q);
+        expanded = false;
+        renderHome(q);
+      } catch (err) {
+        $('#home').innerHTML = `<div class="user-bubble">${esc(q)}</div><div class="greeting"><h1>Backend unavailable</h1><p class="sub">${esc(err.message)} · start FastAPI on port 8000.</p></div>`;
+      }
+    }
+    $('#sendBtn').addEventListener('click', submitQuery);
+    $('#chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitQuery(); });
+    $('#backdrop').addEventListener('click', closeDetail);
+    const initialQuery = new URLSearchParams(window.location.search).get('q') || '';
+    if (initialQuery) {
+      lastQuery = initialQuery;
+      fetchRecommendations(initialQuery).then(() => renderHome(initialQuery)).catch(() => renderHome(initialQuery));
+    } else {
+      fetchRecommendations('').then(() => renderHome()).catch(() => renderHome());
+    }
+  </script>
+</body>
+</html>

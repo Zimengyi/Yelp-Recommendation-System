@@ -1,0 +1,517 @@
+/* Taste hunter — design tokens (PRD §3.1 v2) and component styles */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+
+:root {
+    /* Color tokens */
+    --peach-500: #F5DCA6;
+    --bg-canvas: #FFFFFF;
+    --bg-card: #FFFFFF;
+    --bg-panel: #EBEBEB;
+    --bg-input: #F2F2F2;
+    --bg-quick: #EBEBEB;
+    --text-primary: #1A1A1A;
+    --text-secondary: #737373;
+    --text-tertiary: #8C8C8C;
+    --text-body: #4D4D4D;
+    --border-light: #C7C7C7;
+    --border-dark: #222222;
+    --divider: #D6D6D6;
+    --chip-bg: #F0F2FF;
+    --chip-text: #3349B3;
+    --primary-fill: #1A1A1A;
+    --primary-text: #FFFFFF;
+    --photo-placeholder: #B8A89E;
+    --card-thumb-placeholder: #DCDDE8;
+    --shadow-card: 0 2px 12px rgba(0,0,0,0.08);
+    --shadow-float: 0 2px 8px rgba(0,0,0,0.12);
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Playfair Display', 'PT Serif', 'Times New Roman', serif;
+}
+
+/* ---- Streamlit layout overrides ---- */
+
+html, body, [class*="st-"], .stApp, .main, .block-container {
+    font-family: var(--font-sans) !important;
+    color: var(--text-primary);
+}
+
+.stApp {
+    background: var(--bg-canvas);
+}
+
+/* Hide streamlit's default header / footer / hamburger to give us a clean canvas */
+header[data-testid="stHeader"] { display: none; }
+footer { visibility: hidden; }
+#MainMenu { visibility: hidden; }
+
+/* Tighten container padding so we control the rhythm */
+.main .block-container {
+    padding-top: 0 !important;
+    padding-bottom: 7rem !important;  /* space for sticky bottom bar */
+    max-width: 720px;
+}
+
+/* ---- Top bar (F1-TB-01..03) ---- */
+
+.th-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--peach-500);
+    padding: 14px 20px;
+    margin: 0 -1rem 14px -1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+}
+.th-topbar__icon {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+}
+.th-topbar__title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 16pt;
+    color: var(--text-primary);
+    letter-spacing: 0.2px;
+}
+
+/* ---- Greeting block (F1-GB-01..02) ---- */
+
+.th-greeting {
+    margin: 14px 0 14px 0;
+}
+.th-greeting__h1 {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 22pt;
+    line-height: 1.25;
+    color: var(--text-primary);
+    margin: 0 0 6px 0;
+}
+.th-greeting__sub {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 13pt;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ---- Restaurant card (F1-CD-01..05) ---- */
+
+.th-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    padding: 12px;
+    margin-bottom: 10px;
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 12px;
+    align-items: stretch;
+}
+.th-card__thumb {
+    width: 80px;
+    height: 96px;
+    background: var(--card-thumb-placeholder);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(0,0,0,0.18);
+    font-size: 28px;
+    line-height: 1;
+    user-select: none;
+    flex-shrink: 0;
+}
+.th-card__col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.th-card__name {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    font-size: 15pt;
+    color: var(--text-primary);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.th-card__meta {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 11pt;
+    color: var(--text-secondary);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.th-card__tagline {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 12pt;
+    color: var(--text-body);
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.th-card__chip {
+    align-self: flex-start;
+    background: var(--chip-bg);
+    color: var(--chip-text);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 11pt;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-top: 4px;
+    line-height: 1.2;
+}
+
+.th-actions {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin: 10px 0 14px 2px;
+    color: #8A8A8A;
+}
+.th-actions span {
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+}
+.th-actions svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ---- F1.1 detail bottom sheet ---- */
+
+.th-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: rgba(0,0,0,0.40);
+}
+.th-sheet {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    z-index: 999;
+    width: min(720px, 100vw);
+    height: 95vh;
+    background: var(--bg-canvas);
+    border-radius: 20px 20px 0 0;
+    overflow-y: auto;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.18);
+}
+.th-sheet__hero {
+    height: 280px;
+    background: var(--photo-placeholder);
+    position: relative;
+    border-radius: 20px 20px 0 0;
+}
+.th-sheet__close-vis {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--border-dark);
+}
+.th-photo-badge {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border-radius: 12px;
+    padding: 5px 9px;
+    font-size: 11pt;
+    font-weight: 500;
+}
+.th-sheet__body {
+    padding: 18px 20px 112px 20px;
+}
+.th-sheet__title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.th-sheet__title-row h2 {
+    font-family: var(--font-display);
+    font-size: 22pt;
+    line-height: 1.1;
+    margin: 0;
+    color: var(--text-primary);
+}
+.th-sheet__title-row h2 span {
+    font-family: var(--font-display);
+    font-size: 18pt;
+}
+.th-copy-mini {
+    color: #666;
+    font-size: 16pt;
+}
+.th-sheet__meta {
+    color: var(--text-secondary);
+    font-size: 13pt;
+    margin: 8px 0 14px 0;
+}
+.th-pills {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.th-pill {
+    border: 1px solid var(--border-light);
+    border-radius: 22px;
+    padding: 10px 20px;
+    font-weight: 500;
+    font-size: 14pt;
+    background: #fff;
+}
+.th-pill--dark {
+    background: var(--primary-fill);
+    color: var(--primary-text);
+    border-color: var(--primary-fill);
+}
+.th-panel {
+    background: var(--bg-panel);
+    border-radius: 16px;
+    padding: 16px;
+}
+.th-panel section + section {
+    border-top: 1px solid var(--divider);
+    margin-top: 14px;
+    padding-top: 14px;
+}
+.th-panel h3 {
+    font-size: 13pt;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+}
+.th-panel p {
+    color: var(--text-body);
+    font-size: 12pt;
+    line-height: 1.45;
+    margin: 0;
+}
+.th-panel small {
+    display: block;
+    color: var(--text-tertiary);
+    font-size: 11pt;
+    margin-top: 6px;
+}
+.th-attribution {
+    padding: 8px 0;
+    color: var(--text-tertiary);
+    font-size: 11pt;
+}
+.th-bottom-nav-vis {
+    position: sticky;
+    bottom: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 18px;
+}
+.th-bottom-nav-vis span {
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-float);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+.th-bottom-nav-vis span.is-disabled {
+    opacity: 0.30;
+}
+.th-bottom-nav-vis b {
+    background: #fff;
+    border-radius: 999px;
+    box-shadow: var(--shadow-float);
+    padding: 12px 18px;
+    font-size: 15pt;
+    font-weight: 500;
+}
+
+/* ---- F2 trip plan ---- */
+
+.th-trip-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 14px 0;
+}
+.th-trip-head h1 {
+    font-size: 22pt;
+    line-height: 1.25;
+    margin: 0 0 6px 0;
+}
+.th-trip-head p {
+    color: var(--text-secondary);
+    font-size: 13pt;
+    margin: 0;
+}
+.th-export {
+    border: 1px solid var(--border-light);
+    border-radius: 18px;
+    padding: 8px 12px;
+    font-size: 13pt;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.th-period {
+    margin: 18px 0 8px 0;
+}
+.th-period h2 {
+    font-size: 15pt;
+    font-weight: 600;
+    margin: 0 0 6px 0;
+}
+.th-period p {
+    color: var(--text-body);
+    font-size: 13pt;
+    line-height: 1.5;
+    margin: 0;
+}
+.th-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin: -2px 0 12px 0;
+}
+.th-dots span {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--divider);
+}
+.th-dots span.is-active {
+    background: var(--text-primary);
+}
+
+/* ---- Footer caption ---- */
+
+.th-footer {
+    margin-top: 14px;
+    padding: 10px 0;
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 11pt;
+    color: var(--text-tertiary);
+    border-top: 1px solid var(--divider);
+    text-align: center;
+}
+
+/* ---- Streamlit widget tweaks for input bar look ---- */
+
+div[data-testid="stTextInput"] input {
+    background: var(--bg-input) !important;
+    border-radius: 22px !important;
+    border: 1px solid transparent !important;
+    padding: 11px 16px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 14pt !important;
+    color: var(--text-primary) !important;
+}
+div[data-testid="stTextInput"] input::placeholder {
+    color: var(--text-tertiary) !important;
+}
+div[data-testid="stTextInput"] input:focus {
+    border-color: var(--border-light) !important;
+    outline: none !important;
+}
+
+/* Selectbox styling */
+div[data-testid="stSelectbox"] > div > div {
+    background: var(--bg-input) !important;
+    border-radius: 12px !important;
+    border: 1px solid transparent !important;
+}
+
+/* Buttons — make st.button look like primary CTA */
+div[data-testid="stButton"] > button {
+    background: var(--primary-fill) !important;
+    color: var(--primary-text) !important;
+    border: none !important;
+    border-radius: 22px !important;
+    padding: 8px 18px !important;
+    font-family: var(--font-sans) !important;
+    font-weight: 500 !important;
+    font-size: 14pt !important;
+}
+
+div[data-testid="stButton"] > button[title="th_send"],
+div[data-testid="stButton"] > button:has(p:only-child) {
+    min-height: 40px;
+}
+div[data-testid="stButton"] > button:hover {
+    background: #000 !important;
+    color: #fff !important;
+}
+
+/* Secondary button (Show more / Reset) — use kind="secondary" */
+div[data-testid="stButton"] > button[kind="secondary"] {
+    background: var(--bg-quick) !important;
+    color: var(--text-primary) !important;
+    border-radius: 18px !important;
+    padding: 8px 14px !important;
+    font-size: 12pt !important;
+    font-weight: 500 !important;
+}
+div[data-testid="stButton"] > button[kind="secondary"]:hover {
+    background: #DEDEDE !important;
+}
+
+/* Form submit button (used for input bar send) */
+div[data-testid="stFormSubmitButton"] > button {
+    background: var(--primary-fill) !important;
+    color: var(--primary-text) !important;
+    border: none !important;
+    border-radius: 22px !important;
+    padding: 11px 22px !important;
+    font-family: var(--font-sans) !important;
+    font-weight: 500 !important;
+    font-size: 14pt !important;
+}
+
+/* Spinner */
+.stSpinner > div { color: var(--primary-fill) !important; }
+
+/* Alert/error coloring */
+div[data-testid="stAlert"] {
+    border-radius: 12px;
+    font-family: var(--font-sans) !important;
+}
