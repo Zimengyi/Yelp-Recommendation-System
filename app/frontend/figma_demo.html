@@ -25,7 +25,7 @@
     .icon { width:28px; height:28px; display:grid; place-items:center; color:#1A1A1A; }
     .icon svg { width:100%; height:100%; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
     .brand { font-weight:600; font-size:21px; }
-    .content { padding:20px 20px 118px; }
+    .content { padding:20px 20px 148px; }
     .greeting { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:16px; }
     h1 { margin:0 0 6px; font-size:32px; line-height:1.15; letter-spacing:0; }
     .sub { margin:0; color:var(--text-secondary); font-size:17px; line-height:1.35; }
@@ -40,14 +40,16 @@
     .actions { display:flex; gap:18px; align-items:center; margin:7px 0 14px; color:#8A8A8A; }
     .actions button { width:20px; height:20px; border:0; background:transparent; padding:0; color:inherit; }
     .actions svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
-    .quick { margin:0 0 14px; }
-    .trip-pill { border:0; background:var(--bg-quick); color:var(--text-primary); border-radius:18px; padding:8px 14px; font-size:16px; font-weight:500; display:inline-flex; align-items:center; gap:8px; transition:.15s background,.15s color,.15s box-shadow; }
+    .inputbar { position:fixed; left:50%; bottom:0; transform:translateX(-50%); width:min(100vw,430px); background:#fff; padding:10px 20px 28px; z-index:20; border-top:1px solid rgba(0,0,0,.04); box-shadow:0 -8px 28px rgba(0,0,0,.06); transition:.18s padding,.18s border-radius,.18s box-shadow; }
+    .inputbar.has-mode { padding:24px 20px 36px; border-radius:26px 26px 0 0; box-shadow:0 -12px 38px rgba(0,0,0,.12); }
+    .composer-actions { min-height:30px; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+    .trip-pill { border:0; background:var(--bg-quick); color:var(--text-primary); border-radius:18px; padding:7px 13px; font-size:16px; font-weight:600; display:inline-flex; align-items:center; gap:7px; transition:.15s background,.15s color,.15s box-shadow; }
     .trip-pill.active { background:var(--primary-fill); color:#fff; box-shadow:var(--shadow-float); }
-    .inputbar { position:fixed; left:50%; bottom:0; transform:translateX(-50%); width:min(100vw,430px); background:#fff; padding:12px 20px 28px; display:grid; grid-template-columns:1fr 40px; gap:10px; z-index:20; border-top:1px solid rgba(0,0,0,.04); }
-    .inputbar.has-mode { grid-template-columns:auto 1fr 40px; }
-    .mode-chip { height:44px; border:0; border-radius:22px; background:var(--primary-fill); color:#fff; padding:0 12px; font-size:15px; font-weight:600; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; box-shadow:var(--shadow-float); }
-    .mode-chip.hidden { display:none; }
+    .mode-close { width:34px; height:34px; border:0; border-radius:999px; background:var(--bg-quick); color:var(--text-secondary); font-size:24px; line-height:1; display:grid; place-items:center; }
+    .mode-close.hidden { display:none; }
+    .composer-row { display:grid; grid-template-columns:1fr 40px; gap:10px; align-items:center; }
     .inputbar input { width:100%; height:44px; border:0; outline:0; background:var(--bg-input); border-radius:22px; padding:0 16px; font-size:18px; color:var(--text-primary); }
+    .inputbar.has-mode input { height:74px; border-radius:18px; font-size:20px; }
     .inputbar input:focus { box-shadow:0 0 0 1px var(--border-light) inset; }
     .send { width:40px; height:40px; border-radius:999px; border:0; background:var(--primary-fill); color:#fff; display:grid; place-items:center; opacity:.3; }
     .send.enabled { opacity:1; }
@@ -112,9 +114,14 @@
     <section id="home" class="content"></section>
     <section id="trip" class="content hidden"></section>
     <div class="inputbar">
-      <button id="modeChip" class="mode-chip hidden" aria-label="clear trip mode">Trip Plan ×</button>
-      <input id="chatInput" placeholder="想吃辣？人均 30 以下？说说看…" />
-      <button id="sendBtn" class="send" aria-label="send"><svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/><path d="M12 9v12"/></svg></button>
+      <div class="composer-actions">
+        <button id="tripModeBtn" class="trip-pill" aria-label="activate trip planner">✈ Trip Planner</button>
+        <button id="modeClose" class="mode-close hidden" aria-label="close trip planner">×</button>
+      </div>
+      <div class="composer-row">
+        <input id="chatInput" placeholder="想吃辣？人均 30 以下？说说看…" />
+        <button id="sendBtn" class="send" aria-label="send"><svg viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/><path d="M12 9v12"/></svg></button>
+      </div>
     </div>
   </main>
   <div id="backdrop" class="backdrop"></div>
@@ -243,21 +250,19 @@
         <div class="greeting"><div><h1>${lastQuery ? esc(lastQuery) : 'Philadelphia picks'}</h1><p class="sub">Pipeline C · ${visibleCount} live picks · hard filter + DeepFM v2 rerank</p></div></div>
         ${list}
         <button class="show-more ${expanded ? 'expanded' : ''}" onclick="expanded=!expanded;renderHome()">⌄</button>
-        <div class="actions"><button>${icon.copy}</button><button>${icon.up}</button><button>${icon.down}</button><button>${icon.refresh}</button></div>
-        <div class="quick"><button class="trip-pill ${inputMode === 'trip' ? 'active' : ''}" onclick="activateTripMode()">✈ Trip Planner</button></div>`;
+        <div class="actions"><button>${icon.copy}</button><button>${icon.up}</button><button>${icon.down}</button><button>${icon.refresh}</button></div>`;
     }
     function updateInputMode() {
       const tripMode = inputMode === 'trip';
-      $('#modeChip').classList.toggle('hidden', !tripMode);
+      $('#tripModeBtn').classList.toggle('active', tripMode);
+      $('#modeClose').classList.toggle('hidden', !tripMode);
       $('.inputbar').classList.toggle('has-mode', tripMode);
       $('#chatInput').placeholder = tripMode ? 'Where are you going? budget, cuisine, days…' : '想吃辣？人均 30 以下？说说看…';
-      const tripButton = document.querySelector('.trip-pill');
-      if (tripButton) tripButton.classList.toggle('active', tripMode);
     }
     function activateTripMode(){
       inputMode = 'trip';
       updateInputMode();
-      $('#chatInput').focus();
+      requestAnimationFrame(() => $('#chatInput').focus());
     }
     function clearInputMode(){
       inputMode = 'normal';
@@ -334,7 +339,8 @@
     }
     $('#sendBtn').addEventListener('click', submitQuery);
     $('#chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') submitQuery(); });
-    $('#modeChip').addEventListener('click', clearInputMode);
+    $('#tripModeBtn').addEventListener('click', activateTripMode);
+    $('#modeClose').addEventListener('click', clearInputMode);
     $('#backdrop').addEventListener('click', closeDetail);
     const params = new URLSearchParams(window.location.search);
     const initialQuery = params.get('q') || '';
